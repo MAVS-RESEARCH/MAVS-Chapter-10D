@@ -2034,6 +2034,89 @@ Next action:
 - Remove generated verification artifacts.
 - Commit and push Phase 5.
 
+### 2026-07-04 - Phase 5 Recheck - Frozen Artifact Hash Gate Correction
+
+Files changed:
+
+- `src/mavs10d/training/datasets.py`
+- `src/mavs10d/training/evaluate_holdout.py`
+- `src/mavs10d/specialists/calibrated_classifier.py`
+- `tests/unit/test_calibration_split.py`
+
+Gap found during recheck:
+
+- WorkPlan Phase 5 line 735 requires trained artifacts, if produced, to be frozen and hashed before evaluation.
+- The prior Phase 5 implementation required `training_card.md`, `train_manifest.json`, `calibration.json`, and `model.joblib` before calibrated-classifier evaluation, and required the card/manifest/calibration files before holdout planning.
+- The gap was that holdout planning did not itself produce or carry a frozen artifact hash. This made the artifact-freeze requirement implicit rather than executable in the holdout evaluation gate.
+
+Code produced:
+
+- Added `REQUIRED_MODEL_ARTIFACT_FILES` in `src/mavs10d/training/datasets.py`.
+  - Required files: `training_card.md`, `train_manifest.json`, `calibration.json`, and `model.joblib`.
+- Added `freeze_model_artifact_hash_manifest()` in `src/mavs10d/training/datasets.py`.
+  - Requires the training card, train manifest, calibration file, and model artifact.
+  - Computes SHA-256 hashes for each required file using `file_sha256`.
+  - Produces a stable aggregate `artifact_hash` using `stable_hash`.
+  - Returns a frozen artifact manifest with `frozen: true`.
+- Updated `plan_holdout_evaluation()` in `src/mavs10d/training/evaluate_holdout.py`.
+  - Calls `freeze_model_artifact_hash_manifest()` before declaring a holdout plan ready.
+  - Adds `artifact_hash` to `HoldoutEvaluationPlan`.
+  - Adds `model_artifact_present` and `frozen_artifact_hash_present` to holdout checks.
+- Updated `CalibratedClassifierSpecialist.from_artifact_dir()` in `src/mavs10d/specialists/calibrated_classifier.py`.
+  - Uses the same frozen-artifact gate before loading calibration metadata.
+  - Adds `frozen_artifact_required: true` to specialist evaluation metadata.
+
+Tests updated:
+
+- Updated `tests/unit/test_calibration_split.py`.
+  - Calls `freeze_model_artifact_hash_manifest()` after creating a placeholder `model.joblib`.
+  - Asserts the frozen manifest is marked `frozen`.
+  - Asserts `model.joblib` has a file hash.
+  - Asserts `plan_holdout_evaluation()` carries the same aggregate `artifact_hash`.
+
+Console.log additions and locations:
+
+- `src/mavs10d/training/datasets.py:296`
+  - Comment: `# console.log: phase5.training.datasets.freeze_artifact_hash.start`
+  - Call line: `src/mavs10d/training/datasets.py:297`
+  - Purpose: logs frozen model artifact hash-manifest construction start.
+- `src/mavs10d/training/datasets.py:311`
+  - Comment: `# console.log: phase5.training.datasets.freeze_artifact_hash.complete`
+  - Call line: `src/mavs10d/training/datasets.py:313`
+  - Purpose: logs frozen model artifact aggregate hash after required files are hashed.
+
+Verification run:
+
+- `python -m pytest tests\unit\test_calibration_split.py`
+  - Result: `7 passed`.
+- `python -m compileall src tests`
+  - Result: passed.
+- `python -m pytest`
+  - Result: `73 passed`.
+- Phase 5 targeted recheck script with `PYTHONPATH=src`
+  - Result: `phase5_recheck=pass`.
+  - Ablation count: `16`.
+  - Benchmark sets: `7`.
+  - Ablation records generated and trace-validated: `256`.
+
+WorkPlan compliance after correction:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 5 - Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol`.
+- WorkPlan line 735, freeze trained artifacts and hash them: now executable through `freeze_model_artifact_hash_manifest()`.
+- WorkPlan line 736, evaluate on holdout environments and final benchmark suites: holdout planning now requires a frozen artifact hash before readiness.
+- WorkPlan line 816, no model artifact can be evaluated without training card and manifest: yes, and now also requires calibration, model artifact, per-file hashes, and aggregate artifact hash.
+- No models were trained in Phase 5; this correction governs the optional trained-artifact path if a model is produced later.
+- Final benchmark configs remain disjoint from training seeds and training schedules.
+
+Deviations:
+
+- None from WorkPlan intent. This is a stricter implementation of the stated artifact-freeze requirement.
+
+Next action:
+
+- Commit and push the Phase 5 recheck correction.
+
 Future entries must use this structure:
 
 ```text

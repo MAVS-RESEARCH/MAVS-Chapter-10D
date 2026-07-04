@@ -13,6 +13,7 @@ from mavs10d.training.datasets import (
     SplitPartition,
     build_default_phase5_split_manifest,
     corruption_template_overlap,
+    freeze_model_artifact_hash_manifest,
     hash_overlap,
     prompt_content_near_duplicates,
     scenario_template_overlap,
@@ -107,9 +108,13 @@ def test_model_artifact_requires_training_card_manifest_and_calibration(tmp_path
         validate_classifier_artifact(tmp_path)
 
     (tmp_path / "model.joblib").write_text("placeholder frozen model", encoding="utf-8")
+    frozen_artifact = freeze_model_artifact_hash_manifest(tmp_path)
+    assert frozen_artifact["frozen"] is True
+    assert frozen_artifact["file_hashes"]["model.joblib"]
     assert validate_classifier_artifact(tmp_path)
     plan = plan_holdout_evaluation(tmp_path, manifest, benchmark_family="tool_use_security")
     assert plan.status == "ready_for_frozen_artifact_evaluation"
+    assert plan.artifact_hash == frozen_artifact["artifact_hash"]
 
 
 def test_small_lm_config_enforces_phase5_model_scale_rules() -> None:
@@ -126,4 +131,3 @@ def test_small_lm_config_enforces_phase5_model_scale_rules() -> None:
                 "quantization": "int4",
             }
         )
-

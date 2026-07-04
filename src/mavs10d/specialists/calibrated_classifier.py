@@ -7,7 +7,7 @@ from typing import Any
 
 from mavs10d.core.trace_logging import console_log
 from mavs10d.specialists.base import SpecialistOutput, clamp_score
-from mavs10d.training.datasets import require_training_card_and_manifest
+from mavs10d.training.datasets import freeze_model_artifact_hash_manifest
 
 
 @dataclass(frozen=True)
@@ -29,10 +29,7 @@ class CalibratedClassifierSpecialist:
             artifact_dir=str(artifact_dir),
         )
         root = Path(artifact_dir)
-        require_training_card_and_manifest(root)
-        model_path = root / "model.joblib"
-        if not model_path.exists():
-            raise FileNotFoundError("Model artifact is missing required file: model.joblib")
+        freeze_model_artifact_hash_manifest(root)
         with (root / "calibration.json").open("r", encoding="utf-8") as handle:
             calibration = json.load(handle)
         return cls(
@@ -60,6 +57,7 @@ class CalibratedClassifierSpecialist:
                 "artifact_dir": str(self.artifact_dir),
                 "threshold": self.threshold,
                 "model_artifact_required": True,
+                "frozen_artifact_required": True,
             },
         )
 
@@ -72,4 +70,3 @@ def validate_classifier_artifact(artifact_dir: str | Path) -> bool:
     )
     CalibratedClassifierSpecialist.from_artifact_dir(artifact_dir)
     return True
-

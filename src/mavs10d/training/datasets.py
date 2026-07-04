@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from mavs10d.core.hashing import stable_hash
+from mavs10d.core.hashing import file_sha256, stable_hash
 from mavs10d.core.trace_logging import console_log
 
 
@@ -73,6 +73,12 @@ PHASE5_BENCHMARK_SETS = (
     "stress_schedule_sweep_final",
     "ablation_study_final",
     "external_taxonomy_projection",
+)
+REQUIRED_MODEL_ARTIFACT_FILES = (
+    "training_card.md",
+    "train_manifest.json",
+    "calibration.json",
+    "model.joblib",
 )
 
 
@@ -286,6 +292,30 @@ def require_training_card_and_manifest(artifact_dir: str | Path) -> None:
         raise FileNotFoundError(f"Model artifact is missing required files: {missing}")
 
 
+def freeze_model_artifact_hash_manifest(artifact_dir: str | Path) -> dict[str, Any]:
+    # console.log: phase5.training.datasets.freeze_artifact_hash.start
+    console_log("phase5.training.datasets.freeze_artifact_hash.start", artifact_dir=str(artifact_dir))
+    root = Path(artifact_dir)
+    require_training_card_and_manifest(root)
+    missing = [name for name in REQUIRED_MODEL_ARTIFACT_FILES if not (root / name).exists()]
+    if missing:
+        raise FileNotFoundError(f"Model artifact is missing required files: {missing}")
+    file_hashes = {name: file_sha256(root / name) for name in REQUIRED_MODEL_ARTIFACT_FILES}
+    manifest = {
+        "artifact_dir": str(root),
+        "required_files": list(REQUIRED_MODEL_ARTIFACT_FILES),
+        "file_hashes": file_hashes,
+        "artifact_hash": stable_hash(file_hashes),
+        "frozen": True,
+    }
+    # console.log: phase5.training.datasets.freeze_artifact_hash.complete
+    console_log(
+        "phase5.training.datasets.freeze_artifact_hash.complete",
+        artifact_hash=manifest["artifact_hash"],
+    )
+    return manifest
+
+
 def _ranges_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
     return max(left[0], right[0]) <= min(left[1], right[1])
 
@@ -294,4 +324,3 @@ def _normalized_text(example: dict[str, Any]) -> str:
     prompt = str(example.get("prompt", "")).lower().strip()
     content = str(example.get("content", "")).lower().strip()
     return " ".join(f"{prompt} {content}".split())
-

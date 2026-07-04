@@ -7,7 +7,7 @@ from typing import Any
 from mavs10d.core.trace_logging import console_log
 from mavs10d.training.datasets import (
     SplitManifest,
-    require_training_card_and_manifest,
+    freeze_model_artifact_hash_manifest,
     validate_phase5_split_manifest,
 )
 
@@ -18,6 +18,7 @@ class HoldoutEvaluationPlan:
     benchmark_family: str
     status: str
     checks: list[str]
+    artifact_hash: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -25,6 +26,7 @@ class HoldoutEvaluationPlan:
             "benchmark_family": self.benchmark_family,
             "status": self.status,
             "checks": self.checks,
+            "artifact_hash": self.artifact_hash,
         }
 
 
@@ -43,7 +45,7 @@ def plan_holdout_evaluation(
     errors = validate_phase5_split_manifest(manifest)
     if errors:
         raise ValueError(f"invalid split manifest: {errors}")
-    require_training_card_and_manifest(artifact_dir)
+    frozen_artifact = freeze_model_artifact_hash_manifest(artifact_dir)
     if benchmark_family in manifest.training.environment_families:
         raise ValueError("holdout validation must use benchmark families different from training")
     plan = HoldoutEvaluationPlan(
@@ -54,10 +56,12 @@ def plan_holdout_evaluation(
             "training_card_present",
             "manifest_present",
             "calibration_present",
+            "model_artifact_present",
+            "frozen_artifact_hash_present",
             "holdout_family_disjoint_from_training",
         ],
+        artifact_hash=str(frozen_artifact["artifact_hash"]),
     )
     # console.log: phase5.training.evaluate_holdout.complete
     console_log("phase5.training.evaluate_holdout.complete", status=plan.status)
     return plan
-
