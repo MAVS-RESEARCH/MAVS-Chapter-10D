@@ -17,12 +17,18 @@ from mavs10d.core.types import (
 
 EnvironmentFactory = Callable[[EnvironmentConfig], DynamicGovernanceEnv]
 MethodFactory = Callable[[MethodConfig], GovernanceMethod]
+ComponentFactory = Callable[[dict[str, Any]], Any]
 
 
 class ComponentRegistry:
     def __init__(self) -> None:
         self._environments: dict[str, EnvironmentFactory] = {}
         self._methods: dict[str, MethodFactory] = {}
+        self._baselines: dict[str, MethodFactory] = {}
+        self._corruption_schedules: dict[str, ComponentFactory] = {}
+        self._specialists: dict[str, ComponentFactory] = {}
+        self._metrics: dict[str, ComponentFactory] = {}
+        self._report_builders: dict[str, ComponentFactory] = {}
 
     def register_environment(
         self, component_type: str, factory: EnvironmentFactory
@@ -35,6 +41,39 @@ class ComponentRegistry:
         if component_type in self._methods:
             raise ValueError(f"Method already registered: {component_type}")
         self._methods[component_type] = factory
+
+    def register_baseline(self, component_type: str, factory: MethodFactory) -> None:
+        if component_type in self._baselines:
+            raise ValueError(f"Baseline already registered: {component_type}")
+        self._baselines[component_type] = factory
+
+    def register_corruption_schedule(
+        self, component_type: str, factory: ComponentFactory
+    ) -> None:
+        if component_type in self._corruption_schedules:
+            raise ValueError(
+                f"Corruption schedule already registered: {component_type}"
+            )
+        self._corruption_schedules[component_type] = factory
+
+    def register_specialist(
+        self, component_type: str, factory: ComponentFactory
+    ) -> None:
+        if component_type in self._specialists:
+            raise ValueError(f"Specialist already registered: {component_type}")
+        self._specialists[component_type] = factory
+
+    def register_metric(self, component_type: str, factory: ComponentFactory) -> None:
+        if component_type in self._metrics:
+            raise ValueError(f"Metric already registered: {component_type}")
+        self._metrics[component_type] = factory
+
+    def register_report_builder(
+        self, component_type: str, factory: ComponentFactory
+    ) -> None:
+        if component_type in self._report_builders:
+            raise ValueError(f"Report builder already registered: {component_type}")
+        self._report_builders[component_type] = factory
 
     def create_environment(self, config: EnvironmentConfig) -> DynamicGovernanceEnv:
         try:
@@ -50,11 +89,81 @@ class ComponentRegistry:
             raise KeyError(f"Unknown governance method type: {config.type}") from exc
         return factory(config)
 
+    def create_baseline(self, config: MethodConfig) -> GovernanceMethod:
+        try:
+            factory = self._baselines[config.type]
+        except KeyError as exc:
+            raise KeyError(f"Unknown baseline type: {config.type}") from exc
+        return factory(config)
+
+    def create_corruption_schedule(
+        self, component_type: str, params: dict[str, Any] | None = None
+    ) -> Any:
+        return self._create_generic(
+            self._corruption_schedules,
+            "corruption schedule",
+            component_type,
+            params,
+        )
+
+    def create_specialist(
+        self, component_type: str, params: dict[str, Any] | None = None
+    ) -> Any:
+        return self._create_generic(
+            self._specialists,
+            "specialist",
+            component_type,
+            params,
+        )
+
+    def create_metric(
+        self, component_type: str, params: dict[str, Any] | None = None
+    ) -> Any:
+        return self._create_generic(self._metrics, "metric", component_type, params)
+
+    def create_report_builder(
+        self, component_type: str, params: dict[str, Any] | None = None
+    ) -> Any:
+        return self._create_generic(
+            self._report_builders,
+            "report builder",
+            component_type,
+            params,
+        )
+
     def environment_types(self) -> list[str]:
         return sorted(self._environments)
 
     def method_types(self) -> list[str]:
         return sorted(self._methods)
+
+    def baseline_types(self) -> list[str]:
+        return sorted(self._baselines)
+
+    def corruption_schedule_types(self) -> list[str]:
+        return sorted(self._corruption_schedules)
+
+    def specialist_types(self) -> list[str]:
+        return sorted(self._specialists)
+
+    def metric_types(self) -> list[str]:
+        return sorted(self._metrics)
+
+    def report_builder_types(self) -> list[str]:
+        return sorted(self._report_builders)
+
+    def _create_generic(
+        self,
+        registry: dict[str, ComponentFactory],
+        category_name: str,
+        component_type: str,
+        params: dict[str, Any] | None,
+    ) -> Any:
+        try:
+            factory = registry[component_type]
+        except KeyError as exc:
+            raise KeyError(f"Unknown {category_name} type: {component_type}") from exc
+        return factory(dict(params or {}))
 
 
 @dataclass

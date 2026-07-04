@@ -366,6 +366,119 @@ Next action:
 - Commit and push Phase 1 after removing generated verification artifacts that should not be committed.
 - Await user instruction before beginning Phase 2.
 
+### 2026-07-04 - Phase 1 Correction - Full Registry Scope
+
+Files changed:
+
+- `src/mavs10d/core/registry.py`
+- `tests/unit/test_registry.py`
+- `Path.md`
+
+Issue fixed:
+
+- A post-implementation audit found one WorkPlan compliance gap.
+- `WorkPlan.md` requires the Phase 1 registry to cover environments, governance methods, baselines, corruption schedules, specialists, metrics, and report builders.
+- The first Phase 1 implementation covered environments and governance methods only.
+
+Code produced:
+
+- Expanded `ComponentRegistry` with category registries for all WorkPlan-required component classes:
+  - environments.
+  - governance methods.
+  - baselines.
+  - corruption schedules.
+  - specialists.
+  - metrics.
+  - report builders.
+- Added creation APIs for all new categories.
+- Added type-list APIs for all new categories.
+- Added explicit duplicate-registration errors for all new categories.
+- Added explicit unknown-type errors for all new generic categories.
+
+Exact source evidence:
+
+- `src/mavs10d/core/registry.py:27` stores `_baselines`.
+- `src/mavs10d/core/registry.py:28` stores `_corruption_schedules`.
+- `src/mavs10d/core/registry.py:29` stores `_specialists`.
+- `src/mavs10d/core/registry.py:30` stores `_metrics`.
+- `src/mavs10d/core/registry.py:31` stores `_report_builders`.
+- `src/mavs10d/core/registry.py:45` implements `register_baseline`.
+- `src/mavs10d/core/registry.py:50` implements `register_corruption_schedule`.
+- `src/mavs10d/core/registry.py:59` implements `register_specialist`.
+- `src/mavs10d/core/registry.py:66` implements `register_metric`.
+- `src/mavs10d/core/registry.py:71` implements `register_report_builder`.
+- `src/mavs10d/core/registry.py:92` implements `create_baseline`.
+- `src/mavs10d/core/registry.py:99` implements `create_corruption_schedule`.
+- `src/mavs10d/core/registry.py:109` implements `create_specialist`.
+- `src/mavs10d/core/registry.py:119` implements `create_metric`.
+- `src/mavs10d/core/registry.py:124` implements `create_report_builder`.
+- `src/mavs10d/core/registry.py:140` implements `baseline_types`.
+- `src/mavs10d/core/registry.py:143` implements `corruption_schedule_types`.
+- `src/mavs10d/core/registry.py:146` implements `specialist_types`.
+- `src/mavs10d/core/registry.py:149` implements `metric_types`.
+- `src/mavs10d/core/registry.py:152` implements `report_builder_types`.
+
+Tests produced or run:
+
+- Added `tests/unit/test_registry.py`.
+- `tests/unit/test_registry.py:7` verifies the registry exposes all WorkPlan categories.
+- `tests/unit/test_registry.py:59` verifies duplicate registration is rejected.
+- `tests/unit/test_registry.py:68` verifies unknown category creation errors are explicit.
+
+Commands run and evidence:
+
+- Test suite:
+  - Command: `python -m pytest`
+  - Result: `13 passed`.
+- Compile check:
+  - Command: `python -m compileall -q src scripts tests`
+  - Result: success with exit code 0.
+- WorkPlan smoke command:
+  - Command: `python scripts/run_experiment.py --config configs/experiments/synthetic_smoke.yaml`
+  - Result: wrote `8` JSONL trace records.
+- WorkPlan trace validation command:
+  - Command: `python scripts/validate_traces.py --input results/raw/synthetic_smoke.jsonl`
+  - Result: validation passed with `records=8`.
+- Direct registry coverage check:
+  - environment registration/type listing: callable.
+  - method registration/type listing: callable.
+  - baseline registration/type listing: callable.
+  - corruption schedule registration/type listing: callable.
+  - specialist registration/type listing: callable.
+  - metric registration/type listing: callable.
+  - report builder registration/type listing: callable.
+- Additional stress test after the registry fix:
+  - Scenario: `50 seeds x 20 steps x 1 method`.
+  - Result: `1000` JSONL trace records.
+  - Trace validation: `True`.
+  - Validation errors: `0`.
+  - Captured Python console-log output lines: `5052`.
+
+Console-log impact:
+
+- No new runtime step was added to the runner or scripts.
+- No new `console_log(...)` call sites were added.
+- The existing console-log inventory above remains accurate.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 1 - Repository Foundation, Contracts, Configuration, And Audit Tracing`.
+- The previously partial registry requirement is now complete.
+
+Deviations:
+
+- Added `tests/unit/test_registry.py`, which was not explicitly named in the Phase 1 file list.
+
+Reason for deviations:
+
+- The file is required to prove the registry requirement from the Phase 1 scope text.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push the Phase 1 registry correction.
+
 Future entries must use this structure:
 
 ```text
