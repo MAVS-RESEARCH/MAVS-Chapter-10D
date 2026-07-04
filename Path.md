@@ -9,7 +9,7 @@ This file is the live execution ledger for `WorkPlan.md`. It must be updated as 
 - Initial repository state after clone: only `LICENSE` existed.
 - Active plan: `WorkPlan.md`
 - Active ledger: `Path.md`
-- Overall implementation status: planning complete, code implementation not started.
+- Overall implementation status: Phase 1 implemented, verified, and ready for commit/push.
 
 ## Source Ingestion Log
 
@@ -112,7 +112,7 @@ Next action:
 
 | Phase | Name | Status | Notes |
 | --- | --- | --- | --- |
-| Phase 1 | Repository Foundation, Contracts, Configuration, And Audit Tracing | Not started | Required next. |
+| Phase 1 | Repository Foundation, Contracts, Configuration, And Audit Tracing | Completed | Implemented and verified with tests, smoke run, trace validation, compile check, and stress run. |
 | Phase 2 | Dynamic Environments, Corruption Schedules, And Sequential Candidate Generation | Not started | Depends on Phase 1 interfaces. |
 | Phase 3 | Modern Governance Baselines And Abstention Methods | Not started | Depends on Phase 1 runner and Phase 2 env smoke tests. |
 | Phase 4 | MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters | Not started | Depends on Phases 1-3. |
@@ -121,7 +121,250 @@ Next action:
 
 ## Implementation Entries
 
-No code implementation entries yet.
+### 2026-07-04 - Phase 1 - Repository Foundation, Contracts, Configuration, And Audit Tracing
+
+Files changed:
+
+- `pyproject.toml`
+- `README.md`
+- `src/mavs10d/__init__.py`
+- `src/mavs10d/core/types.py`
+- `src/mavs10d/core/interfaces.py`
+- `src/mavs10d/core/config.py`
+- `src/mavs10d/core/runner.py`
+- `src/mavs10d/core/registry.py`
+- `src/mavs10d/core/trace_logging.py`
+- `src/mavs10d/core/seeds.py`
+- `src/mavs10d/core/hashing.py`
+- `scripts/run_experiment.py`
+- `scripts/validate_traces.py`
+- `tests/unit/test_types.py`
+- `tests/unit/test_config.py`
+- `tests/unit/test_trace_logging.py`
+- `tests/unit/test_seeds.py`
+- `tests/integration/test_runner_smoke.py`
+- `configs/experiments/synthetic_smoke.yaml`
+- `Path.md`
+
+Code produced:
+
+- Created the Python package scaffold under `src/mavs10d`.
+- Implemented `Observation`, `CandidateAction`, `GovernanceDecision`, `StepResult`, and `EpisodeTrace` as typed dataclasses in `src/mavs10d/core/types.py`.
+- Added `MAVS_TRACE_FIELD_NAMES`, `mavs_trace_template`, and `trace_supports_mavs_fields` so the Phase 1 trace schema explicitly supports the MAVS-GC audit fields required by `WorkPlan.md`.
+- Implemented `DynamicGovernanceEnv` and `GovernanceMethod` protocols in `src/mavs10d/core/interfaces.py`.
+- Implemented YAML experiment config loading, validation, deterministic config hashing, and a pandas-backed seed frame in `src/mavs10d/core/config.py`.
+- Implemented deterministic seed controls using Python `random` and `numpy` in `src/mavs10d/core/seeds.py`.
+- Implemented stable JSON hashing, file hashing, git commit capture, and hidden-label hashing in `src/mavs10d/core/hashing.py`.
+- Implemented a method-neutral component registry in `src/mavs10d/core/registry.py`.
+- Implemented deterministic Phase 1 smoke components in `src/mavs10d/core/registry.py`: `SyntheticSmokeEnv` and `RiskThresholdMethod`. These are not final benchmark environments or baselines; they exist only to prove the Phase 1 runner contract before Phase 2.
+- Implemented `JsonlTraceWriter`, trace validation, JSONL iteration, UTC timestamping, and Python console logging in `src/mavs10d/core/trace_logging.py`.
+- Implemented `ExperimentRunner` in `src/mavs10d/core/runner.py`. It executes the exact Phase 1 loop from `WorkPlan.md`: load config, resolve environment/methods, reset per seed, propose candidate, decide, step environment, write JSONL trace, and call method update hook.
+- Implemented `scripts/run_experiment.py` for config-driven experiment execution.
+- Implemented `scripts/validate_traces.py` for trace-file validation.
+- Updated `README.md` with Phase 1 commands and claim discipline.
+
+Configs produced:
+
+- `configs/experiments/synthetic_smoke.yaml`
+  - `name`: `synthetic_smoke`
+  - `run_id`: `synthetic_smoke_phase1`
+  - `seeds`: `[1, 2]`
+  - `episode_steps`: `4`
+  - `env`: `synthetic_smoke`
+  - `method`: `risk_threshold`
+  - `outputs.raw_traces`: `results/raw/synthetic_smoke.jsonl`
+  - `metrics`: unsafe acceptance, false rejection, trace completeness placeholders for Phase 1 smoke verification.
+
+Tests produced or run:
+
+- Created `tests/unit/test_types.py`.
+  - Verifies dataclass serialization/deserialization.
+  - Verifies decision traces support MAVS-GC trace fields.
+- Created `tests/unit/test_config.py`.
+  - Verifies YAML config loading.
+  - Verifies config hash stability.
+  - Verifies config validation rejects missing seeds.
+- Created `tests/unit/test_trace_logging.py`.
+  - Verifies runner-written traces validate successfully.
+  - Verifies config hash, git commit field, hidden-label hash, and trace completeness are present.
+- Created `tests/unit/test_seeds.py`.
+  - Verifies deterministic Python and numpy random sequences.
+  - Verifies derived seeds are stable and namespaced.
+- Created `tests/integration/test_runner_smoke.py`.
+  - Verifies deterministic runner output for identical seeds/configs.
+  - Verifies a larger 20-seed integration stress case writes 80 valid trace records.
+
+Commands run and evidence:
+
+- Dependency install:
+  - Command: `python -m pip install -e .[dev]`
+  - Result: success.
+  - Installed missing Phase 1 dependencies: `PyYAML` and `pytest`.
+- Test suite:
+  - Command: `python -m pytest`
+  - Result: `10 passed`.
+- Compile check:
+  - Command: `python -m compileall -q src scripts tests`
+  - Result: success with exit code 0.
+- WorkPlan smoke command:
+  - Command: `python scripts/run_experiment.py --config configs/experiments/synthetic_smoke.yaml`
+  - Result: wrote `8` JSONL trace records.
+  - Calculation: `2 seeds x 4 steps x 1 method = 8 records`.
+- WorkPlan trace validation command:
+  - Command: `python scripts/validate_traces.py --input results/raw/synthetic_smoke.jsonl`
+  - Result: validation passed with `records=8`.
+- Trace inspection:
+  - `records`: `8`
+  - top-level fields present: `candidate`, `config_hash`, `created_at_utc`, `decision`, `environment_id`, `episode_id`, `git_commit`, `hidden_label_hash`, `metadata`, `method_id`, `observation`, `run_id`, `seed`, `step_id`, `step_result`, `trace_complete`
+  - decision fields present: `decision`, `rationale`, `risk_score`, `severity`, `threshold`, `trace`, `triggered_checks`
+  - MAVS-GC trace field count: `20`
+  - `trace_complete`: `True`
+  - `config_hash_present`: `True`
+  - `git_commit_present`: `True`
+  - `hidden_label_hash_present`: `True`
+  - smoke unsafe acceptances: `0`
+  - smoke false rejections: `0`
+- Additional stress test:
+  - Scenario: `50 seeds x 20 steps x 1 method`.
+  - Result: `1000` JSONL trace records.
+  - Trace validation: `True`.
+  - Validation errors: `0`.
+  - Captured Python console-log output lines: `5052`.
+
+Results produced:
+
+- `results/raw/synthetic_smoke.jsonl`
+- `results/raw/phase1_stress.jsonl`
+- `results/raw/phase1_stress_console.log`
+- These result files are generated verification artifacts and are not intended to be committed as Phase 1 source code.
+
+Console-log implementation note:
+
+- `WorkPlan.md` defines Phase 1 as a Python implementation. JavaScript `console.log(...)` syntax is not valid Python. To preserve the user's audit requirement without making invalid Python, Phase 1 implements a Python function named `console_log(...)` in `src/mavs10d/core/trace_logging.py`. It writes literal console output prefixed with `console.log`, for example `console.log {"event": "phase1.runner.step05.method_decide", ...}`.
+- Every call site has a preceding `# console.log:` comment that identifies the audited step.
+
+Console-log line inventory:
+
+- `src/mavs10d/core/trace_logging.py:36`
+  - Function: `def console_log(event: str, **fields: Any) -> None`
+  - Purpose: central Python console-log adapter that emits literal `console.log` output.
+- `src/mavs10d/core/config.py:99`
+  - Comment: `# console.log: phase1.load_config.start`
+  - Call line: `src/mavs10d/core/config.py:100`
+  - Purpose: logs YAML config-load start.
+- `src/mavs10d/core/config.py:105`
+  - Comment: `# console.log: phase1.load_config.yaml_loaded`
+  - Call line: `src/mavs10d/core/config.py:106`
+  - Purpose: logs successful YAML parse and top-level keys.
+- `src/mavs10d/core/config.py:114`
+  - Comment: `# console.log: phase1.load_config.validated`
+  - Call line: `src/mavs10d/core/config.py:115`
+  - Purpose: logs validated experiment name, run id, seed count, method count, and config hash.
+- `src/mavs10d/core/runner.py:33`
+  - Comment: `# console.log: phase1.runner.step01.load_config`
+  - Call line: `src/mavs10d/core/runner.py:34`
+  - Purpose: WorkPlan runner step 1, load YAML config.
+- `src/mavs10d/core/runner.py:43`
+  - Comment: `# console.log: phase1.runner.step02.resolve_environment`
+  - Call line: `src/mavs10d/core/runner.py:44`
+  - Purpose: WorkPlan runner step 2, resolve environment factory.
+- `src/mavs10d/core/runner.py:50`
+  - Comment: `# console.log: phase1.runner.step02.resolve_methods`
+  - Call line: `src/mavs10d/core/runner.py:51`
+  - Purpose: WorkPlan runner step 2, resolve governance method factories.
+- `src/mavs10d/core/runner.py:61`
+  - Comment: `# console.log: phase1.runner.step03.reset_episode`
+  - Call line: `src/mavs10d/core/runner.py:62`
+  - Purpose: WorkPlan runner step 3, reset environment and method per seed.
+- `src/mavs10d/core/runner.py:71`
+  - Comment: `# console.log: phase1.runner.step04.propose_candidate`
+  - Call line: `src/mavs10d/core/runner.py:72`
+  - Purpose: WorkPlan runner step 4, ask environment for candidate action.
+- `src/mavs10d/core/runner.py:79`
+  - Comment: `# console.log: phase1.runner.step05.method_decide`
+  - Call line: `src/mavs10d/core/runner.py:80`
+  - Purpose: WorkPlan runner step 5, ask method for governance decision.
+- `src/mavs10d/core/runner.py:87`
+  - Comment: `# console.log: phase1.runner.step06.environment_step`
+  - Call line: `src/mavs10d/core/runner.py:88`
+  - Purpose: WorkPlan runner step 6, step environment with decision.
+- `src/mavs10d/core/runner.py:120`
+  - Comment: `# console.log: phase1.runner.step07.write_trace`
+  - Call line: `src/mavs10d/core/runner.py:121`
+  - Purpose: WorkPlan runner step 7, write JSONL audit trace record.
+- `src/mavs10d/core/runner.py:130`
+  - Comment: `# console.log: phase1.runner.step08.method_update`
+  - Call line: `src/mavs10d/core/runner.py:131`
+  - Purpose: WorkPlan runner step 8, call adaptive-method update hook.
+- `scripts/run_experiment.py:24`
+  - Comment: `# console.log: phase1.script.run_experiment.start`
+  - Call line: `scripts/run_experiment.py:25`
+  - Purpose: logs CLI experiment start.
+- `scripts/run_experiment.py:28`
+  - Comment: `# console.log: phase1.script.run_experiment.complete`
+  - Call line: `scripts/run_experiment.py:29`
+  - Purpose: logs CLI experiment completion, output path, record count, config hash, and git commit.
+- `scripts/validate_traces.py:24`
+  - Comment: `# console.log: phase1.script.validate_traces.start`
+  - Call line: `scripts/validate_traces.py:25`
+  - Purpose: logs trace validation start.
+- `scripts/validate_traces.py:30`
+  - Comment: `# console.log: phase1.script.validate_traces.failed`
+  - Call line: `scripts/validate_traces.py:31`
+  - Purpose: logs trace validation failure and error count.
+- `scripts/validate_traces.py:38`
+  - Comment: `# console.log: phase1.script.validate_traces.complete`
+  - Call line: `scripts/validate_traces.py:39`
+  - Purpose: logs trace validation success and record count.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 1 - Repository Foundation, Contracts, Configuration, And Audit Tracing`.
+- `Observation`, `CandidateAction`, `GovernanceDecision`, `StepResult`, and `EpisodeTrace`: implemented in `src/mavs10d/core/types.py`.
+- `DynamicGovernanceEnv` protocol: implemented in `src/mavs10d/core/interfaces.py`.
+- `GovernanceMethod` protocol: implemented in `src/mavs10d/core/interfaces.py`.
+- Config loading for experiments, methods, environments, metrics, and outputs: implemented in `src/mavs10d/core/config.py`.
+- Deterministic seed handling: implemented in `src/mavs10d/core/seeds.py` and tested.
+- JSONL trace writer with config hash, git commit hash, run id, method id, environment id, episode id, step id, and decision trace: implemented in `src/mavs10d/core/trace_logging.py` and `src/mavs10d/core/runner.py`.
+- Registry for environments and governance methods: implemented in `src/mavs10d/core/registry.py`.
+- Basic test structure and CI-friendly commands: implemented through `pyproject.toml`, `tests/unit`, and `tests/integration`.
+- Runner step 1, load YAML config: implemented and logged.
+- Runner step 2, resolve registered environment and method factories: implemented and logged.
+- Runner step 3, reset environment per seed: implemented and logged.
+- Runner step 4, ask environment for candidate action: implemented and logged.
+- Runner step 5, ask method to decide: implemented and logged.
+- Runner step 6, step environment with governance decision: implemented and logged.
+- Runner step 7, write JSONL trace record: implemented and logged.
+- Runner step 8, call method update hook: implemented and logged.
+- `GovernanceDecision` fields `decision`, `risk_score`, `severity`, `rationale`, `triggered_checks`, `threshold`, and `trace`: implemented and validated.
+- MAVS-GC trace support fields: implemented as a 20-field schema and validated in emitted traces.
+- No model training in Phase 1: complied.
+- Phase 1 validation is software correctness only: complied.
+- No performance claim is made from Phase 1: complied.
+
+Acceptance criteria evidence:
+
+- `python scripts/run_experiment.py --config configs/experiments/synthetic_smoke.yaml` writes JSONL traces: yes, wrote `8` records to `results/raw/synthetic_smoke.jsonl`.
+- Trace records include config hash and git commit hash when available: yes, inspection showed both present.
+- `python scripts/validate_traces.py --input results/raw/synthetic_smoke.jsonl` passes: yes, validation completed with `records=8`.
+- Tests prove deterministic seeds produce identical traces for deterministic methods and environments: yes, `tests/integration/test_runner_smoke.py` normalizes timestamps and compares duplicate runs.
+- `Path.md` is updated with all files created and whether Phase 1 matches the plan: yes, this entry records the implementation and compliance evidence.
+
+Deviations:
+
+- Added `tests/unit/test_seeds.py` and `tests/integration/test_runner_smoke.py`, which are not named in the Phase 1 file list but are required to satisfy the Phase 1 benchmark and anti-overfitting requirement for deterministic seed behavior and integration smoke testing.
+- Implemented Python `console_log(...)` calls instead of literal JavaScript `console.log(...)` syntax because the codebase is Python. Each call site includes the exact requested `# console.log:` comment and emits output prefixed with literal `console.log`.
+
+Reason for deviations:
+
+- The additional tests close explicit WorkPlan requirements that were described in text but not fully represented in the file list.
+- Literal JavaScript `console.log(...)` would make Python source invalid. The implemented adapter preserves the audit semantics and console output while keeping the Python package executable.
+
+Next action:
+
+- Commit and push Phase 1 after removing generated verification artifacts that should not be committed.
+- Await user instruction before beginning Phase 2.
 
 Future entries must use this structure:
 

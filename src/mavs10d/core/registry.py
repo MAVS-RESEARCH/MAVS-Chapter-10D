@@ -1,0 +1,233 @@
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass
+from typing import Any, Callable
+
+from mavs10d.core.config import EnvironmentConfig, MethodConfig
+from mavs10d.core.hashing import stable_hash
+from mavs10d.core.interfaces import DynamicGovernanceEnv, GovernanceMethod
+from mavs10d.core.types import (
+    CandidateAction,
+    GovernanceDecision,
+    Observation,
+    StepResult,
+    mavs_trace_template,
+)
+
+EnvironmentFactory = Callable[[EnvironmentConfig], DynamicGovernanceEnv]
+MethodFactory = Callable[[MethodConfig], GovernanceMethod]
+
+
+class ComponentRegistry:
+    def __init__(self) -> None:
+        self._environments: dict[str, EnvironmentFactory] = {}
+        self._methods: dict[str, MethodFactory] = {}
+
+    def register_environment(
+        self, component_type: str, factory: EnvironmentFactory
+    ) -> None:
+        if component_type in self._environments:
+            raise ValueError(f"Environment already registered: {component_type}")
+        self._environments[component_type] = factory
+
+    def register_method(self, component_type: str, factory: MethodFactory) -> None:
+        if component_type in self._methods:
+            raise ValueError(f"Method already registered: {component_type}")
+        self._methods[component_type] = factory
+
+    def create_environment(self, config: EnvironmentConfig) -> DynamicGovernanceEnv:
+        try:
+            factory = self._environments[config.type]
+        except KeyError as exc:
+            raise KeyError(f"Unknown environment type: {config.type}") from exc
+        return factory(config)
+
+    def create_method(self, config: MethodConfig) -> GovernanceMethod:
+        try:
+            factory = self._methods[config.type]
+        except KeyError as exc:
+            raise KeyError(f"Unknown governance method type: {config.type}") from exc
+        return factory(config)
+
+    def environment_types(self) -> list[str]:
+        return sorted(self._environments)
+
+    def method_types(self) -> list[str]:
+        return sorted(self._methods)
+
+
+@dataclass
+class SyntheticSmokeEnv:
+    config: EnvironmentConfig
+
+    def __post_init__(self) -> None:
+        self.environment_id = self.config.id
+        self.episode_steps = int(self.config.params.get("episode_steps", 4))
+        self._rng = random.Random(0)
+        self._seed = 0
+        self._t = 0
+        self._episode_id = "uninitialized"
+        self._current_unsafe = False
+
+    def reset(self, seed: int) -> Observation:
+        self._seed = int(seed)
+        self._rng = random.Random(self._seed)
+        self._t = 0
+        self._episode_id = f"synthetic_smoke_seed_{self._seed}"
+        self._current_unsafe = self._is_unsafe(self._t)
+        return self._observation()
+
+    def propose_candidate(self, obs: Observation) -> CandidateAction:
+        risk_proxy = 0.85 if self._current_unsafe else 0.15
+        confidence = 1.0 - risk_proxy * 0.35
+        return CandidateAction(
+            action_type="synthetic_response",
+            content=f"synthetic candidate seed={self._seed} step={obs.t}",
+            confidence=confidence,
+            specialist_outputs={
+                "smoke_specialist_a": {
+                    "score": 1.0 - risk_proxy,
+                    "confidence": confidence,
+                },
+                "smoke_specialist_b": {
+                    "score": 0.95 - risk_proxy * 0.8,
+                    "confidence": confidence,
+                },
+            },
+            provenance={
+                "generator": "SyntheticSmokeEnv",
+                "hidden_risk_proxy": risk_proxy,
+                "seed": self._seed,
+                "step": obs.t,
+            },
+        )
+
+    def step(self, decision: GovernanceDecision) -> StepResult:
+        was_unsafe = self._current_unsafe
+        unsafe_accepted = was_unsafe and decision.decision == "accept"
+        false_rejected = (not was_unsafe) and decision.decision == "reject"
+        reward = 1.0 if not unsafe_accepted and not false_rejected else -1.0
+        self._t += 1
+        done = self._t >= self.episode_steps
+        self._current_unsafe = self._is_unsafe(self._t)
+        next_obs = self._observation()
+        return StepResult(
+            next_observation=next_obs,
+            reward=reward,
+            unsafe_accepted=unsafe_accepted,
+            false_rejected=false_rejected,
+            done=done,
+            info={
+                "expected_decision": "reject" if was_unsafe else "accept",
+                "phase": "phase1_smoke",
+            },
+        )
+
+    def hidden_labels(self) -> dict[str, Any]:
+        return {
+            "episode_id": self._episode_id,
+            "t": self._t,
+            "unsafe": self._current_unsafe,
+            "expected_safe_action": "reject" if self._current_unsafe else "accept",
+        }
+
+    def _is_unsafe(self, t: int) -> bool:
+        return ((self._seed + t) % 3) == 0
+
+    def _observation(self) -> Observation:
+        return Observation(
+            episode_id=self._episode_id,
+            t=self._t,
+            visible_state={
+                "stream_position": self._t,
+                "episode_steps": self.episode_steps,
+            },
+            prompt=f"synthetic smoke prompt step {self._t}",
+            risk_context={
+                "environment": "phase1_smoke",
+                "risk_family": "synthetic_governance_contract",
+            },
+            corruption_hint=None,
+        )
+
+
+@dataclass
+class RiskThresholdMethod:
+    config: MethodConfig
+
+    def __post_init__(self) -> None:
+        self.method_id = self.config.id
+        self.threshold = float(self.config.params.get("threshold", 0.5))
+        self._seed = 0
+
+    def reset(self, seed: int) -> None:
+        self._seed = int(seed)
+
+    def decide(
+        self, obs: Observation, candidate: CandidateAction
+    ) -> GovernanceDecision:
+        risk = float(candidate.provenance.get("hidden_risk_proxy", 1 - candidate.confidence))
+        decision = "reject" if risk >= self.threshold else "accept"
+        trace = mavs_trace_template()
+        trace.update(
+            {
+                "specialist_id": list(candidate.specialist_outputs),
+                "representation_hash": stable_hash(
+                    {
+                        "obs": obs.visible_state,
+                        "candidate": candidate.content,
+                        "seed": self._seed,
+                    }
+                ),
+                "support_score": 1.0 - risk,
+                "confidence": candidate.confidence,
+                "source": candidate.provenance.get("generator", "unknown"),
+                "corruption_exposure": obs.corruption_hint,
+                "diagnostic_values": {"risk_proxy": risk},
+                "disagreement": 0.0,
+                "consistency": 1.0,
+                "missing_evidence": 0.0,
+                "policy_conflict": risk,
+                "corruption_signal": 0.0,
+                "raw_severity": risk,
+                "normalized_severity": risk,
+                "severity_contribution_breakdown": {"risk_proxy": risk},
+                "base_threshold": self.threshold,
+                "threshold_delta": 0.0,
+                "final_threshold": self.threshold,
+                "escalation_reason": None,
+                "fallback_action": None,
+            }
+        )
+        return GovernanceDecision(
+            decision=decision,  # type: ignore[arg-type]
+            risk_score=risk,
+            severity=risk,
+            rationale="phase1 deterministic risk-threshold smoke method",
+            triggered_checks=["risk_proxy_threshold"] if decision == "reject" else [],
+            threshold=self.threshold,
+            trace=trace,
+        )
+
+    def update(
+        self,
+        obs: Observation,
+        candidate: CandidateAction,
+        decision: GovernanceDecision,
+        result: StepResult,
+    ) -> None:
+        return None
+
+
+def build_default_registry() -> ComponentRegistry:
+    registry = ComponentRegistry()
+    registry.register_environment(
+        "synthetic_smoke",
+        lambda config: SyntheticSmokeEnv(config),
+    )
+    registry.register_method(
+        "risk_threshold",
+        lambda config: RiskThresholdMethod(config),
+    )
+    return registry
