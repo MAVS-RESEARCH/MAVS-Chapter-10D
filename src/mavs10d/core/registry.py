@@ -330,13 +330,63 @@ class RiskThresholdMethod:
 
 
 def build_default_registry() -> ComponentRegistry:
+    from mavs10d.corruption.schedules import build_schedule_from_config
+    from mavs10d.envs.correlated_collapse_env import CorrelatedCollapseEnv
+    from mavs10d.envs.cyber_triage_env import CyberTriageEnv
+    from mavs10d.envs.multi_agent_env import MultiAgentOperationsEnv
+    from mavs10d.envs.static_accuracy_adapter import StaticAccuracyAdapterEnv
+    from mavs10d.envs.synthetic_ops_env import SyntheticOpsEnv
+    from mavs10d.envs.text_safety_env import TextSafetyStreamEnv
+    from mavs10d.envs.tool_use_env import ToolUseSecurityEnv
+    from mavs10d.specialists.heuristic import HeuristicSpecialistBank
+
     registry = ComponentRegistry()
     registry.register_environment(
         "synthetic_smoke",
         lambda config: SyntheticSmokeEnv(config),
     )
+    registry.register_environment(
+        "text_safety_stream",
+        lambda config: TextSafetyStreamEnv(config),
+    )
+    registry.register_environment(
+        "tool_use_security",
+        lambda config: ToolUseSecurityEnv(config),
+    )
+    registry.register_environment(
+        "cyber_triage",
+        lambda config: CyberTriageEnv(config),
+    )
+    registry.register_environment(
+        "multi_agent_operations",
+        lambda config: MultiAgentOperationsEnv(config),
+    )
+    registry.register_environment(
+        "synthetic_ops",
+        lambda config: SyntheticOpsEnv(config),
+    )
+    registry.register_environment(
+        "correlated_representation_collapse",
+        lambda config: CorrelatedCollapseEnv(config),
+    )
+    registry.register_environment(
+        "static_accuracy_adapter",
+        lambda config: StaticAccuracyAdapterEnv(config),
+    )
     registry.register_method(
         "risk_threshold",
         lambda config: RiskThresholdMethod(config),
+    )
+    registry.register_corruption_schedule(
+        "piecewise",
+        lambda params: build_schedule_from_config({"type": "piecewise", **params}),
+    )
+    registry.register_corruption_schedule(
+        "sweep",
+        lambda params: build_schedule_from_config({"type": "sweep", **params}),
+    )
+    registry.register_specialist(
+        "heuristic_bank",
+        lambda params: HeuristicSpecialistBank.from_params(params),
     )
     return registry
