@@ -330,6 +330,16 @@ class RiskThresholdMethod:
 
 
 def build_default_registry() -> ComponentRegistry:
+    from mavs10d.baselines.confidence_gate import ConfidenceGateBaseline
+    from mavs10d.baselines.conformal import (
+        AdaptiveConformalBaseline,
+        ConformalAbstentionBaseline,
+    )
+    from mavs10d.baselines.disagreement_gate import DisagreementGateBaseline
+    from mavs10d.baselines.policy_rails import PolicyRailBaseline
+    from mavs10d.baselines.reject_option import RejectOptionBaseline
+    from mavs10d.baselines.self_consistency import SelfConsistencyBaseline
+    from mavs10d.baselines.validator_stack import ValidatorStackBaseline
     from mavs10d.corruption.schedules import build_schedule_from_config
     from mavs10d.envs.correlated_collapse_env import CorrelatedCollapseEnv
     from mavs10d.envs.cyber_triage_env import CyberTriageEnv
@@ -377,6 +387,19 @@ def build_default_registry() -> ComponentRegistry:
         "risk_threshold",
         lambda config: RiskThresholdMethod(config),
     )
+    baseline_factories = {
+        "policy_rails": lambda config: PolicyRailBaseline(config),
+        "validator_stack": lambda config: ValidatorStackBaseline(config),
+        "confidence_gate": lambda config: ConfidenceGateBaseline(config),
+        "disagreement_gate": lambda config: DisagreementGateBaseline(config),
+        "self_consistency": lambda config: SelfConsistencyBaseline(config),
+        "conformal_static": lambda config: ConformalAbstentionBaseline(config),
+        "conformal_adaptive": lambda config: AdaptiveConformalBaseline(config),
+        "reject_option": lambda config: RejectOptionBaseline(config),
+    }
+    for baseline_type, factory in baseline_factories.items():
+        registry.register_method(baseline_type, factory)
+        registry.register_baseline(baseline_type, factory)
     registry.register_corruption_schedule(
         "piecewise",
         lambda params: build_schedule_from_config({"type": "piecewise", **params}),

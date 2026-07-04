@@ -9,7 +9,7 @@ This file is the live execution ledger for `WorkPlan.md`. It must be updated as 
 - Initial repository state after clone: only `LICENSE` existed.
 - Active plan: `WorkPlan.md`
 - Active ledger: `Path.md`
-- Overall implementation status: Phase 2 implemented, verified, and ready for commit/push.
+- Overall implementation status: Phase 3 implemented, verified, and ready for commit/push.
 
 ## Source Ingestion Log
 
@@ -114,7 +114,7 @@ Next action:
 | --- | --- | --- | --- |
 | Phase 1 | Repository Foundation, Contracts, Configuration, And Audit Tracing | Completed | Implemented and verified with tests, smoke run, trace validation, compile check, and stress run. |
 | Phase 2 | Dynamic Environments, Corruption Schedules, And Sequential Candidate Generation | Completed | Implemented and verified with unit tests, integration tests, config runs, trace validation, sweep inspection, and multi-environment stress test. |
-| Phase 3 | Modern Governance Baselines And Abstention Methods | Not started | Depends on Phase 1 runner and Phase 2 env smoke tests. |
+| Phase 3 | Modern Governance Baselines And Abstention Methods | Completed | Implemented and verified with unit tests, integration tests, config run, trace validation, registry checks, and baseline stress test. |
 | Phase 4 | MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters | Not started | Depends on Phases 1-3. |
 | Phase 5 | Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol | Not started | Depends on MAVS-GC implementation. |
 | Phase 6 | Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline | Not started | Final execution and reporting phase. |
@@ -777,6 +777,260 @@ Next action:
 
 - Remove generated verification artifacts.
 - Commit and push Phase 2.
+
+### 2026-07-04 - Phase 3 - Modern Governance Baselines And Abstention Methods
+
+Files changed:
+
+- `src/mavs10d/core/registry.py`
+- `src/mavs10d/baselines/__init__.py`
+- `src/mavs10d/baselines/common.py`
+- `src/mavs10d/baselines/policy_rails.py`
+- `src/mavs10d/baselines/validator_stack.py`
+- `src/mavs10d/baselines/confidence_gate.py`
+- `src/mavs10d/baselines/disagreement_gate.py`
+- `src/mavs10d/baselines/self_consistency.py`
+- `src/mavs10d/baselines/conformal.py`
+- `src/mavs10d/baselines/reject_option.py`
+- `configs/baselines/rails.yaml`
+- `configs/baselines/validators.yaml`
+- `configs/baselines/conformal.yaml`
+- `configs/experiments/baseline_suite_dev.yaml`
+- `data/calibration/phase3_conformal_scores.yaml`
+- `tests/unit/baseline_test_utils.py`
+- `tests/unit/test_policy_rails.py`
+- `tests/unit/test_validator_stack.py`
+- `tests/unit/test_confidence_gate.py`
+- `tests/unit/test_disagreement_gate.py`
+- `tests/unit/test_self_consistency.py`
+- `tests/unit/test_conformal.py`
+- `tests/integration/test_baseline_suite.py`
+- `Path.md`
+
+Code produced:
+
+- Implemented shared baseline trace and risk helpers in `src/mavs10d/baselines/common.py`.
+- Implemented `PolicyRailBaseline` in `src/mavs10d/baselines/policy_rails.py:20`.
+- Implemented `ValidatorStackBaseline` in `src/mavs10d/baselines/validator_stack.py:22`.
+- Implemented `ConfidenceGateBaseline` in `src/mavs10d/baselines/confidence_gate.py:9`.
+- Implemented `DisagreementGateBaseline` in `src/mavs10d/baselines/disagreement_gate.py:9`.
+- Implemented `SelfConsistencyBaseline` in `src/mavs10d/baselines/self_consistency.py:12`.
+- Implemented `ConformalAbstentionBaseline` in `src/mavs10d/baselines/conformal.py:13`.
+- Implemented `AdaptiveConformalBaseline` in `src/mavs10d/baselines/conformal.py:105`.
+- Implemented `RejectOptionBaseline` in `src/mavs10d/baselines/reject_option.py:9`.
+- Registered every Phase 3 baseline both as a method and as a baseline so they run through the same runner path as MAVS-GC will use later.
+- Added adaptive reset isolation so adaptive conformal and adaptive reject-option state resets per seed.
+- Added threshold-lag reporting to adaptive conformal trace details.
+- Added threshold-sweep reporting to reject-option trace details.
+
+Registry evidence:
+
+- `src/mavs10d/core/registry.py:391` registers `policy_rails`.
+- `src/mavs10d/core/registry.py:392` registers `validator_stack`.
+- `src/mavs10d/core/registry.py:393` registers `confidence_gate`.
+- `src/mavs10d/core/registry.py:394` registers `disagreement_gate`.
+- `src/mavs10d/core/registry.py:395` registers `self_consistency`.
+- `src/mavs10d/core/registry.py:396` registers `conformal_static`.
+- `src/mavs10d/core/registry.py:397` registers `conformal_adaptive`.
+- `src/mavs10d/core/registry.py:398` registers `reject_option`.
+- Direct registry check confirmed all eight baseline types are present in both `method_types()` and `baseline_types()`.
+
+Configs produced:
+
+- `configs/baselines/rails.yaml`
+  - Rails cover jailbreak heuristics, PII checks, unsafe tool calls, topic blocks, and risk predicates.
+- `configs/baselines/validators.yaml`
+  - Validators cover jailbreak, PII, unsafe tool calls, factuality proxy, hallucination proxy, schema validation, toxicity heuristic, secret detection, SQL/code validation, and topic restriction.
+  - Aggregation config uses `noisy_or` with threshold `0.55`.
+- `configs/baselines/conformal.yaml`
+  - Uses `calibration_scores_path: data/calibration/phase3_conformal_scores.yaml` at `configs/baselines/conformal.yaml:5`.
+- `data/calibration/phase3_conformal_scores.yaml`
+  - Stores conformal calibration scores outside experiment traces at `data/calibration/phase3_conformal_scores.yaml:1`.
+- `configs/experiments/baseline_suite_dev.yaml`
+  - Includes all eight Phase 3 baselines in one development smoke config.
+  - Baseline method entries are at `configs/experiments/baseline_suite_dev.yaml:46` through `configs/experiments/baseline_suite_dev.yaml:80`.
+
+Tests produced or run:
+
+- Added `tests/unit/test_policy_rails.py`.
+  - Verifies YAML-loaded policy rails reject unsafe tool calls and accept benign candidates.
+- Added `tests/unit/test_validator_stack.py`.
+  - Verifies validator stack rejects jailbreak/secret examples and supports weighted-sum aggregation.
+- Added `tests/unit/test_confidence_gate.py`.
+  - Verifies confidence reject and escalation behavior.
+- Added `tests/unit/test_disagreement_gate.py`.
+  - Verifies high disagreement escalates/rejects and consistent scores are accepted.
+- Added `tests/unit/test_self_consistency.py`.
+  - Verifies high-margin safe cases and low-margin escalation cases.
+- Added `tests/unit/test_conformal.py`.
+  - Verifies static conformal refuses update.
+  - Verifies adaptive conformal updates its window and reports threshold-lag fields.
+  - Verifies adaptive conformal reset restores calibration state.
+  - Verifies reject-option threshold sweeps and adaptive reset behavior.
+- Added `tests/integration/test_baseline_suite.py`.
+  - Verifies all Phase 3 baselines are registered.
+  - Verifies all Phase 3 baselines run through `ExperimentRunner`.
+  - Verifies all emitted traces are complete.
+- Added `tests/unit/baseline_test_utils.py` for deterministic synthetic baseline fixtures.
+
+Commands run and evidence:
+
+- Full test suite:
+  - Command: `python -m pytest`
+  - Result: `41 passed`.
+- Compile check:
+  - Command: `python -m compileall -q src scripts tests`
+  - Result: success with exit code 0.
+- Baseline-suite smoke run:
+  - Command: `python scripts/run_experiment.py --config configs/experiments/baseline_suite_dev.yaml`
+  - Result: wrote `192` records.
+  - Calculation: `2 seeds x 12 steps x 8 baselines = 192 records`.
+- Baseline-suite trace validation:
+  - Command: `python scripts/validate_traces.py --input results/raw/baseline_suite_dev.jsonl`
+  - Result: validation passed with `records=192`.
+- Baseline-suite trace inspection:
+  - Records: `192`.
+  - Method ids: `confidence_gate_dev`, `conformal_adaptive_dev`, `conformal_static_dev`, `disagreement_gate_dev`, `policy_rails_dev`, `reject_option_dev`, `self_consistency_dev`, `validator_stack_dev`.
+  - `trace_complete_all`: `True`.
+  - `final_threshold_all`: `True`.
+  - Decision values observed: `accept`, `escalate`, `reject`.
+  - Candidate shape complete for all records: `True`.
+  - Adaptive conformal trace keys include `distribution_shift_level`, `threshold_delta`, and `threshold_lag_signal`.
+- Baseline stress test:
+  - Environments: `text_safety_stream`, `tool_use_security`, `cyber_triage`.
+  - Baselines: all eight Phase 3 baselines.
+  - Scenario: `10 seeds x 20 steps x 8 baselines` per environment.
+  - Records per environment: `1600`.
+  - Total records: `4800`.
+  - Trace validation: `True` for every environment.
+  - Validation errors: `0` for every environment.
+  - Baseline count observed in every stress trace file: `8`.
+  - Trace completeness: `True`.
+  - Final threshold present in every decision trace: `True`.
+
+Console-log line inventory:
+
+- `src/mavs10d/baselines/policy_rails.py:31`
+  - Comment: `# console.log: phase3.policy_rails.decide.start`
+  - Call line: `src/mavs10d/baselines/policy_rails.py:32`
+  - Purpose: logs policy-rail decision start.
+- `src/mavs10d/baselines/policy_rails.py:43`
+  - Comment: `# console.log: phase3.policy_rails.decide.complete`
+  - Call line: `src/mavs10d/baselines/policy_rails.py:44`
+  - Purpose: logs policy-rail decision, risk, and triggered rails.
+- `src/mavs10d/baselines/validator_stack.py:34`
+  - Comment: `# console.log: phase3.validator_stack.decide.start`
+  - Call line: `src/mavs10d/baselines/validator_stack.py:35`
+  - Purpose: logs validator-stack decision start and validator count.
+- `src/mavs10d/baselines/validator_stack.py:46`
+  - Comment: `# console.log: phase3.validator_stack.decide.complete`
+  - Call line: `src/mavs10d/baselines/validator_stack.py:47`
+  - Purpose: logs validator-stack decision, risk, and triggered validators.
+- `src/mavs10d/baselines/confidence_gate.py:20`
+  - Comment: `# console.log: phase3.confidence_gate.decide.start`
+  - Call line: `src/mavs10d/baselines/confidence_gate.py:21`
+  - Purpose: logs confidence-gate decision start and candidate confidence.
+- `src/mavs10d/baselines/confidence_gate.py:45`
+  - Comment: `# console.log: phase3.confidence_gate.decide.complete`
+  - Call line: `src/mavs10d/baselines/confidence_gate.py:46`
+  - Purpose: logs confidence-gate decision and risk.
+- `src/mavs10d/baselines/disagreement_gate.py:21`
+  - Comment: `# console.log: phase3.disagreement_gate.decide.start`
+  - Call line: `src/mavs10d/baselines/disagreement_gate.py:22`
+  - Purpose: logs disagreement-gate decision start.
+- `src/mavs10d/baselines/disagreement_gate.py:49`
+  - Comment: `# console.log: phase3.disagreement_gate.decide.complete`
+  - Call line: `src/mavs10d/baselines/disagreement_gate.py:50`
+  - Purpose: logs disagreement-gate decision and disagreement score.
+- `src/mavs10d/baselines/self_consistency.py:26`
+  - Comment: `# console.log: phase3.self_consistency.decide.start`
+  - Call line: `src/mavs10d/baselines/self_consistency.py:27`
+  - Purpose: logs self-consistency voting start.
+- `src/mavs10d/baselines/self_consistency.py:54`
+  - Comment: `# console.log: phase3.self_consistency.decide.complete`
+  - Call line: `src/mavs10d/baselines/self_consistency.py:55`
+  - Purpose: logs self-consistency decision, votes, and margin.
+- `src/mavs10d/baselines/conformal.py:29`
+  - Comment: `# console.log: phase3.conformal_static.decide.start`
+  - Call line: `src/mavs10d/baselines/conformal.py:30`
+  - Purpose: logs static conformal decision start and threshold.
+- `src/mavs10d/baselines/conformal.py:50`
+  - Comment: `# console.log: phase3.conformal_static.decide.complete`
+  - Call line: `src/mavs10d/baselines/conformal.py:51`
+  - Purpose: logs static conformal decision and nonconformity score.
+- `src/mavs10d/baselines/conformal.py:124`
+  - Comment: `# console.log: phase3.conformal_adaptive.decide.start`
+  - Call line: `src/mavs10d/baselines/conformal.py:125`
+  - Purpose: logs adaptive conformal decision start, threshold, and update count.
+- `src/mavs10d/baselines/conformal.py:146`
+  - Comment: `# console.log: phase3.conformal_adaptive.decide.complete`
+  - Call line: `src/mavs10d/baselines/conformal.py:147`
+  - Purpose: logs adaptive conformal decision and nonconformity score.
+- `src/mavs10d/baselines/conformal.py:196`
+  - Comment: `# console.log: phase3.conformal_adaptive.update`
+  - Call line: `src/mavs10d/baselines/conformal.py:197`
+  - Purpose: logs adaptive conformal threshold update.
+- `src/mavs10d/baselines/reject_option.py:30`
+  - Comment: `# console.log: phase3.reject_option.decide.start`
+  - Call line: `src/mavs10d/baselines/reject_option.py:31`
+  - Purpose: logs reject-option decision start and thresholds.
+- `src/mavs10d/baselines/reject_option.py:59`
+  - Comment: `# console.log: phase3.reject_option.decide.complete`
+  - Call line: `src/mavs10d/baselines/reject_option.py:60`
+  - Purpose: logs reject-option decision and risk.
+- `src/mavs10d/baselines/reject_option.py:103`
+  - Comment: `# console.log: phase3.reject_option.update`
+  - Call line: `src/mavs10d/baselines/reject_option.py:104`
+  - Purpose: logs adaptive reject-option threshold update.
+
+Known limitations:
+
+- All Phase 3 baselines are deterministic heuristic implementations. No model-based validators, judges, or small local language models were added.
+- Policy rails approximate NeMo-style policy rail behavior but do not import or clone NeMo Guardrails.
+- Validator stack approximates Guardrails AI-style modular validation but does not import Guardrails AI.
+- Conformal calibration scores are a small explicit calibration fixture for Phase 3 smoke validation, not final benchmark calibration data.
+- Final comparison suites remain future Phase 6 work; this phase supplies development smoke tests and separated calibration data only.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 3 - Modern Governance Baselines And Abstention Methods`.
+- At least 6 modern baselines implemented and registered: yes, all eight planned baselines are implemented and registered.
+- Each baseline implements `GovernanceMethod`: yes.
+- Each baseline emits complete `GovernanceDecision` traces: yes, validated with `trace_complete_all=True`.
+- Baselines run through the same runner as MAVS-GC will: yes, `baseline_suite_dev.yaml` runs through `ExperimentRunner`.
+- Baselines receive the same `Observation` and `CandidateAction`: yes, unit and integration tests exercise those structures directly.
+- Baselines are included in at least one experiment config: yes, `configs/experiments/baseline_suite_dev.yaml`.
+- Threshold defaults come from configs or constructor params, not final benchmark fitting.
+- Conformal calibration data is separate from generated benchmark traces under `data/calibration/`.
+- Self-consistency is tested against high-margin and low-margin cases.
+- Adaptive conformal reports update counts, threshold deltas, distribution-shift levels, and threshold-lag signal.
+- Reject-option exposes threshold sweeps.
+
+Acceptance criteria evidence:
+
+- At least 6 modern baselines implemented and registered: yes, eight.
+- Each baseline writes complete `GovernanceDecision` trace: yes, trace validation and inspection passed.
+- Baselines run through the same runner as MAVS-GC will: yes, `ExperimentRunner` wrote 192 baseline-suite records and 4800 stress records.
+- Baselines receive the same `Observation` and `CandidateAction` structures: yes, no baseline-specific runner path exists.
+- Baselines are included in at least one experiment config: yes, `baseline_suite_dev.yaml`.
+- `Path.md` records baseline files, limitations, and plan compliance: yes.
+
+Deviations:
+
+- Added `src/mavs10d/baselines/common.py` to keep trace creation and risk helpers consistent across baselines.
+- Added `configs/experiments/baseline_suite_dev.yaml` to satisfy the acceptance criterion that baselines appear in at least one experiment config.
+- Added `data/calibration/phase3_conformal_scores.yaml` to satisfy the WorkPlan separation of calibration data from generated benchmark traces.
+- Added `tests/unit/baseline_test_utils.py` for shared deterministic unit-test fixtures.
+
+Reason for deviations:
+
+- These additions support explicit Phase 3 requirements that are stated in scope/acceptance text but not fully represented in the file list.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push Phase 3.
 
 Future entries must use this structure:
 

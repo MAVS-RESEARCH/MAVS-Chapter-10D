@@ -1,0 +1,28 @@
+rails:
+  - name: jailbreak_rail
+    type: jailbreak_heuristic
+    risk: 0.85
+    patterns:
+      - ignore prior
+      - bypass
+      - jailbreak
+  - name: pii_rail
+    type: pii_check
+    risk: 0.80
+  - name: unsafe_tool_rail
+    type: unsafe_tool_call
+    risk: 0.90
+    blocked_tools:
+      - shell_exec
+      - delete_file
+  - name: topic_block_rail
+    type: topic_block
+    risk: 0.70
+    topics:
+      - malware
+      - credential theft
+  - name: risk_predicate_rail
+    type: risk_predicate
+    risk: 0.75
+    min_risk: 0.70
+
