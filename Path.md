@@ -1666,6 +1666,374 @@ Next action:
 - Remove generated verification artifacts.
 - Commit and push the Phase 4 correction.
 
+### 2026-07-04 - Phase 5 - Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol
+
+Files changed:
+
+- `src/mavs10d/governance/ablations.py`
+- `src/mavs10d/governance/mavs_gc.py`
+- `src/mavs10d/governance/diagnostics.py`
+- `src/mavs10d/specialists/calibrated_classifier.py`
+- `src/mavs10d/specialists/small_lm.py`
+- `src/mavs10d/training/__init__.py`
+- `src/mavs10d/training/datasets.py`
+- `src/mavs10d/training/calibration.py`
+- `src/mavs10d/training/train_classifier.py`
+- `src/mavs10d/training/evaluate_holdout.py`
+- `configs/experiments/ablation_study.yaml`
+- `configs/experiments/model_training_optional.yaml`
+- `configs/experiments/model_holdout_validation.yaml`
+- `configs/experiments/dynamic_governance_v1_dev.yaml`
+- `configs/experiments/dynamic_governance_v1_final.yaml`
+- `configs/experiments/correlated_failure_final.yaml`
+- `configs/experiments/stress_schedule_sweep_final.yaml`
+- `configs/experiments/external_taxonomy_projection.yaml`
+- `tests/unit/test_ablations.py`
+- `tests/unit/test_calibration_split.py`
+- `tests/integration/test_ablation_suite.py`
+- `Path.md`
+
+Code produced:
+
+- Added `AblationConfig` and config-level ablation helpers in `src/mavs10d/governance/ablations.py`.
+- Updated the same `MAVSGovernance` class to construct ablation variants from `MethodConfig.params["ablation"]`.
+- Implemented all required ablation toggles:
+  - severity mode.
+  - diagnostics mode.
+  - threshold policy.
+  - specialist bank composition.
+  - escalation policy.
+  - representation sharing.
+  - noise injection.
+- Implemented all required ablation names:
+  - `full_mavs_gc`.
+  - `no_severity`.
+  - `fixed_severity`.
+  - `noisy_severity`.
+  - `no_diagnostics`.
+  - `single_diagnostic_only`.
+  - `randomized_diagnostic`.
+  - `fixed_threshold`.
+  - `delayed_threshold`.
+  - `over_sensitive_threshold`.
+  - `homogeneous_specialists`.
+  - `heterogeneous_specialists`.
+  - `shared_representation`.
+  - `reject_only_fallback`.
+  - `accept_reject_only_no_escalation`.
+  - `no_escalation`.
+- Added split-manifest controls in `src/mavs10d/training/datasets.py`.
+  - Training seeds: `1-999`.
+  - Calibration seeds: `1000-1999`.
+  - Development validation seeds: `2000-2999`.
+  - Final benchmark seeds: `10000-19999`.
+  - Training families: Text Safety Stream and Synthetic Ops.
+  - Final families: Tool-Use Security, Cyber Triage, Multi-Agent Operations, Correlated Collapse, and Synthetic Ops stress sweep.
+  - Training transforms: ambiguity and confidence miscalibration.
+  - Final transforms: prompt injection, evidence masking, label drift, shared wrong premise, exfiltration bait, and residual drift.
+  - Training schedules: clean-to-mild and mild-to-burst.
+  - Final schedules: late correlated collapse, burst recovery, high-noise sweep, and adversarial adaptation.
+- Added leakage checks:
+  - hash overlap.
+  - prompt/content near-duplicate check.
+  - scenario-template overlap.
+  - corruption-template overlap.
+- Added negative-control declarations:
+  - label shuffle.
+  - seed shuffle.
+  - schedule shuffle.
+  - benign-only rejection trap.
+  - unsafe-only acceptance trap.
+- Added overfitting indicator declarations:
+  - train/calibration/final UAR/FRR/reward gap.
+  - calibration error gap.
+  - performance collapse under unseen transforms.
+  - threshold sensitivity.
+  - per-environment variance.
+- Added calibration-only threshold helper in `src/mavs10d/training/calibration.py`.
+- Added optional classifier training scaffold in `src/mavs10d/training/train_classifier.py`.
+  - Default behavior is `skipped` with reason `no_models_trained_in_phase5`.
+  - Training cannot proceed without a valid split manifest.
+- Added holdout evaluation planning in `src/mavs10d/training/evaluate_holdout.py`.
+  - Requires model artifact training card, train manifest, and calibration file.
+  - Rejects holdout validation on a training environment family.
+- Added calibrated classifier specialist scaffold in `src/mavs10d/specialists/calibrated_classifier.py`.
+  - Requires `training_card.md`, `train_manifest.json`, `calibration.json`, and `model.joblib` before evaluation.
+- Added small local model metadata scaffold in `src/mavs10d/specialists/small_lm.py`.
+  - Enforces 1B-3B range, quantization, and exact revision if enabled.
+  - Disabled by default.
+- Updated diagnostics to read explicit provenance concentration from candidate provenance and visible state.
+
+Configs produced:
+
+- `configs/experiments/ablation_study.yaml`
+  - Benchmark set: `ablation_study_final`.
+  - Contains full MAVS-GC plus all 15 additional required ablation variants.
+  - Uses final seeds `[10000, 10001]`.
+- `configs/experiments/model_training_optional.yaml`
+  - Training scaffold only.
+  - Uses training seeds `[101, 102]`.
+  - Uses Text Safety Stream with training-allowed transforms only.
+  - Metadata records `model_training_decision: no_models_trained_in_phase5`.
+- `configs/experiments/model_holdout_validation.yaml`
+  - Benchmark set: `model_holdout_validation`.
+  - Uses development validation seeds `[2000, 2001]`.
+  - Uses Tool-Use Security, disjoint from training families.
+- `configs/experiments/dynamic_governance_v1_dev.yaml`
+  - Benchmark set: `dynamic_governance_v1_dev`.
+  - Uses development validation seeds.
+- `configs/experiments/dynamic_governance_v1_final.yaml`
+  - Benchmark set: `dynamic_governance_v1_final`.
+  - Uses final seeds and final adversarial adaptation schedule.
+- `configs/experiments/correlated_failure_final.yaml`
+  - Benchmark set: `correlated_failure_final`.
+  - Uses final seeds and late correlated collapse schedule.
+- `configs/experiments/stress_schedule_sweep_final.yaml`
+  - Benchmark set: `stress_schedule_sweep_final`.
+  - Uses final seeds and corruption sweep from `0.05` to `0.60`.
+- `configs/experiments/external_taxonomy_projection.yaml`
+  - Benchmark set: `external_taxonomy_projection`.
+  - Category mapping only; no official external validation/test data.
+
+Tests produced or run:
+
+- Added `tests/unit/test_ablations.py`.
+  - Verifies all required ablation names are supported.
+  - Verifies `MAVSGovernance` constructs each variant from config.
+  - Verifies no-severity, fixed-threshold, and no-escalation effects are visible.
+- Added `tests/unit/test_calibration_split.py`.
+  - Verifies default split manifest satisfies Phase 5 controls.
+  - Verifies seed overlap and training-transform leakage are rejected.
+  - Verifies hash, near-duplicate, scenario-template, and corruption-template leakage helpers.
+  - Verifies calibration requires calibration seed range.
+  - Verifies optional training is skipped by default.
+  - Verifies model artifact evaluation requires card, manifest, calibration, and model file.
+  - Verifies small local model scale rules.
+- Added `tests/integration/test_ablation_suite.py`.
+  - Verifies ablation suite runs through the common runner.
+  - Verifies all ablations appear in traces.
+  - Verifies Phase 5 benchmark configs exist and exclude training seeds/schedules where required.
+- Ran `python -m pytest`.
+  - Result: `73 passed in 5.07s`.
+- Ran `python -m compileall src tests`.
+  - Result: all source and test modules compiled.
+- Ran all Phase 5 configs through `ExperimentRunner` and trace validation.
+  - `ablation_study.yaml`: `records=256`, validated `256`.
+  - `model_training_optional.yaml`: `records=12`, validated `12`.
+  - `model_holdout_validation.yaml`: `records=12`, validated `12`.
+  - `dynamic_governance_v1_dev.yaml`: `records=12`, validated `12`.
+  - `dynamic_governance_v1_final.yaml`: `records=12`, validated `12`.
+  - `correlated_failure_final.yaml`: `records=16`, validated `16`.
+  - `stress_schedule_sweep_final.yaml`: `records=48`, validated `48`.
+  - `external_taxonomy_projection.yaml`: `records=8`, validated `8`.
+- Ran 5-seed ablation stress variant.
+  - Result: `phase5_ablation_stress_records=640`.
+  - Validated records: `640`.
+  - Ablation count in traces: `16`.
+  - Method count in traces: `16`.
+- Ran anti-overfitting compliance script.
+  - Result: `phase5_overfitting_controls=pass`.
+  - Training result: `skipped:no_models_trained_in_phase5`.
+  - Required benchmark sets present:
+    - `ablation_study_final`.
+    - `correlated_failure_final`.
+    - `dynamic_governance_v1_dev`.
+    - `dynamic_governance_v1_final`.
+    - `external_taxonomy_projection`.
+    - `model_holdout_validation`.
+    - `stress_schedule_sweep_final`.
+
+Results produced:
+
+- Phase 5 config verification generated and validated 376 trace records.
+- Phase 5 ablation stress generated and validated 640 trace records.
+- Total Phase 5 runner evidence: 1,016 validated trace records.
+- No model artifacts were produced.
+- No model artifact was evaluated without a training card and manifest.
+- No official HELM Safety, CyberSecEval, SWE-bench, BrowserBench/WebArena, or GAIA validation/test data was ingested.
+
+Console log statements and comments:
+
+- `src/mavs10d/governance/ablations.py:55`
+  - Comment: `# console.log: phase5.ablations.config.from_params`
+  - Call line: `src/mavs10d/governance/ablations.py:56`
+  - Purpose: logs construction of ablation config from method params.
+- `src/mavs10d/governance/ablations.py:89`
+  - Comment: `# console.log: phase5.ablations.apply_diagnostics.start`
+  - Call line: `src/mavs10d/governance/ablations.py:90`
+  - Purpose: logs diagnostic ablation start.
+- `src/mavs10d/governance/ablations.py:111`
+  - Comment: `# console.log: phase5.ablations.apply_diagnostics.complete`
+  - Call line: `src/mavs10d/governance/ablations.py:112`
+  - Purpose: logs diagnostic ablation result.
+- `src/mavs10d/governance/ablations.py:126`
+  - Comment: `# console.log: phase5.ablations.apply_severity.start`
+  - Call line: `src/mavs10d/governance/ablations.py:127`
+  - Purpose: logs severity ablation start.
+- `src/mavs10d/governance/ablations.py:151`
+  - Comment: `# console.log: phase5.ablations.apply_severity.complete`
+  - Call line: `src/mavs10d/governance/ablations.py:152`
+  - Purpose: logs severity ablation result.
+- `src/mavs10d/governance/ablations.py:160`
+  - Comment: `# console.log: phase5.ablations.apply_weights`
+  - Call line: `src/mavs10d/governance/ablations.py:161`
+  - Purpose: logs specialist-bank composition ablation.
+- `src/mavs10d/governance/ablations.py:182`
+  - Comment: `# console.log: phase5.ablations.compute_threshold.start`
+  - Call line: `src/mavs10d/governance/ablations.py:183`
+  - Purpose: logs threshold-policy ablation start.
+- `src/mavs10d/governance/ablations.py:212`
+  - Comment: `# console.log: phase5.ablations.compute_threshold.complete`
+  - Call line: `src/mavs10d/governance/ablations.py:213`
+  - Purpose: logs threshold-policy ablation result.
+- `src/mavs10d/governance/ablations.py:227`
+  - Comment: `# console.log: phase5.ablations.apply_decision_policy.start`
+  - Call line: `src/mavs10d/governance/ablations.py:228`
+  - Purpose: logs escalation-policy ablation start.
+- `src/mavs10d/governance/ablations.py:260`
+  - Comment: `# console.log: phase5.ablations.apply_decision_policy.complete`
+  - Call line: `src/mavs10d/governance/ablations.py:261`
+  - Purpose: logs escalation-policy ablation result.
+- `src/mavs10d/governance/ablations.py:272`
+  - Comment: `# console.log: phase5.ablations.representation_payload`
+  - Call line: `src/mavs10d/governance/ablations.py:273`
+  - Purpose: logs representation-sharing ablation.
+- `src/mavs10d/governance/ablations.py:306`
+  - Comment: `# console.log: phase5.ablations.named`
+  - Call line: `src/mavs10d/governance/ablations.py:307`
+  - Purpose: logs named ablation lookup.
+- `src/mavs10d/governance/ablations.py:363`
+  - Comment: `# console.log: phase5.ablations.method_configs`
+  - Call line: `src/mavs10d/governance/ablations.py:364`
+  - Purpose: logs generation of ablation method configs.
+- `src/mavs10d/specialists/calibrated_classifier.py:26`
+  - Comment: `# console.log: phase5.specialists.calibrated_classifier.from_artifact`
+  - Call line: `src/mavs10d/specialists/calibrated_classifier.py:27`
+  - Purpose: logs frozen classifier artifact loading.
+- `src/mavs10d/specialists/calibrated_classifier.py:45`
+  - Comment: `# console.log: phase5.specialists.calibrated_classifier.evaluate`
+  - Call line: `src/mavs10d/specialists/calibrated_classifier.py:46`
+  - Purpose: logs calibrated classifier specialist evaluation.
+- `src/mavs10d/specialists/calibrated_classifier.py:68`
+  - Comment: `# console.log: phase5.specialists.calibrated_classifier.validate_artifact`
+  - Call line: `src/mavs10d/specialists/calibrated_classifier.py:69`
+  - Purpose: logs model artifact validation.
+- `src/mavs10d/specialists/small_lm.py:21`
+  - Comment: `# console.log: phase5.specialists.small_lm.config.from_params`
+  - Call line: `src/mavs10d/specialists/small_lm.py:22`
+  - Purpose: logs small local model config construction.
+- `src/mavs10d/specialists/small_lm.py:35`
+  - Comment: `# console.log: phase5.specialists.small_lm.config.validate`
+  - Call line: `src/mavs10d/specialists/small_lm.py:36`
+  - Purpose: logs small local model scale validation.
+- `src/mavs10d/specialists/small_lm.py:57`
+  - Comment: `# console.log: phase5.specialists.small_lm.evaluate`
+  - Call line: `src/mavs10d/specialists/small_lm.py:58`
+  - Purpose: logs optional small-LM placeholder evaluation.
+- `src/mavs10d/training/datasets.py:130`
+  - Comment: `# console.log: phase5.training.datasets.build_manifest`
+  - Call line: `src/mavs10d/training/datasets.py:131`
+  - Purpose: logs split-manifest construction.
+- `src/mavs10d/training/datasets.py:181`
+  - Comment: `# console.log: phase5.training.datasets.validate_manifest.start`
+  - Call line: `src/mavs10d/training/datasets.py:182`
+  - Purpose: logs split-manifest validation start.
+- `src/mavs10d/training/datasets.py:220`
+  - Comment: `# console.log: phase5.training.datasets.validate_manifest.complete`
+  - Call line: `src/mavs10d/training/datasets.py:221`
+  - Purpose: logs split-manifest validation result.
+- `src/mavs10d/training/datasets.py:229`
+  - Comment: `# console.log: phase5.training.datasets.example_hash`
+  - Call line: `src/mavs10d/training/datasets.py:230`
+  - Purpose: logs example hash generation.
+- `src/mavs10d/training/datasets.py:235`
+  - Comment: `# console.log: phase5.training.datasets.hash_overlap`
+  - Call line: `src/mavs10d/training/datasets.py:236`
+  - Purpose: logs hash-overlap leakage check.
+- `src/mavs10d/training/datasets.py:244`
+  - Comment: `# console.log: phase5.training.datasets.near_duplicates`
+  - Call line: `src/mavs10d/training/datasets.py:245`
+  - Purpose: logs prompt/content near-duplicate leakage check.
+- `src/mavs10d/training/datasets.py:257`
+  - Comment: `# console.log: phase5.training.datasets.scenario_template_overlap`
+  - Call line: `src/mavs10d/training/datasets.py:258`
+  - Purpose: logs scenario-template overlap check.
+- `src/mavs10d/training/datasets.py:265`
+  - Comment: `# console.log: phase5.training.datasets.corruption_template_overlap`
+  - Call line: `src/mavs10d/training/datasets.py:266`
+  - Purpose: logs corruption-template overlap check.
+- `src/mavs10d/training/datasets.py:273`
+  - Comment: `# console.log: phase5.training.datasets.require_artifact_docs`
+  - Call line: `src/mavs10d/training/datasets.py:274`
+  - Purpose: logs model artifact card/manifest requirement check.
+- `src/mavs10d/training/calibration.py:33`
+  - Comment: `# console.log: phase5.training.calibration.threshold.start`
+  - Call line: `src/mavs10d/training/calibration.py:34`
+  - Purpose: logs calibration-only threshold selection start.
+- `src/mavs10d/training/calibration.py:52`
+  - Comment: `# console.log: phase5.training.calibration.threshold.complete`
+  - Call line: `src/mavs10d/training/calibration.py:53`
+  - Purpose: logs calibration-only threshold result.
+- `src/mavs10d/training/calibration.py:62`
+  - Comment: `# console.log: phase5.training.calibration.manifest`
+  - Call line: `src/mavs10d/training/calibration.py:63`
+  - Purpose: logs calibration manifest scaffold.
+- `src/mavs10d/training/train_classifier.py:33`
+  - Comment: `# console.log: phase5.training.train_classifier.start`
+  - Call line: `src/mavs10d/training/train_classifier.py:34`
+  - Purpose: logs optional classifier training start.
+- `src/mavs10d/training/train_classifier.py:49`
+  - Comment: `# console.log: phase5.training.train_classifier.skipped`
+  - Call line: `src/mavs10d/training/train_classifier.py:50`
+  - Purpose: logs explicit no-training decision.
+- `src/mavs10d/training/train_classifier.py:60`
+  - Comment: `# console.log: phase5.training.train_classifier.blocked`
+  - Call line: `src/mavs10d/training/train_classifier.py:61`
+  - Purpose: logs blocked optional training without frozen-artifact process.
+- `src/mavs10d/training/evaluate_holdout.py:37`
+  - Comment: `# console.log: phase5.training.evaluate_holdout.start`
+  - Call line: `src/mavs10d/training/evaluate_holdout.py:38`
+  - Purpose: logs holdout evaluation planning start.
+- `src/mavs10d/training/evaluate_holdout.py:60`
+  - Comment: `# console.log: phase5.training.evaluate_holdout.complete`
+  - Call line: `src/mavs10d/training/evaluate_holdout.py:61`
+  - Purpose: logs holdout evaluation planning result.
+
+Model training:
+
+- No models were trained in Phase 5.
+- No model artifacts were produced.
+- No fine-tuning was performed.
+- Optional local model support is metadata/scaffold only.
+- Chapter 10D tests governance methodology here, not trained model generalization.
+- Calibration-only threshold helper uses calibration seed range `1000-1999`.
+- Final benchmark configs use final seed range `10000-19999` and exclude training schedule names.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 5 - Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol`.
+- At least 5 MAVS ablations implemented and runnable: yes, 16.
+- Full ablation config includes the larger ablation set where feasible: yes, all listed required ablations are included.
+- Optional training code, if present, enforces split manifests: yes.
+- No model artifact can be evaluated without a training card and manifest: yes, enforced and tested.
+- Holdout validation uses benchmark families different from training: yes, Tool-Use Security holdout versus Text Safety/Synthetic Ops training families.
+- Final benchmark configs exclude training seeds and training schedules: yes, verified by test and compliance script.
+- `Path.md` records exact training/no-training decision and overfitting controls: yes.
+
+Deviations:
+
+- Added additional Phase 5 benchmark-set configs beyond the three explicit files listed in the Phase 5 "Files To Make" subsection.
+
+Reason for deviations:
+
+- The Phase 5 "Resultant Benchmarks" subsection requires benchmark sets after Phase 5. Adding small config scaffolds for those named sets makes the requirement explicit, testable, and auditable.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push Phase 5.
+
 Future entries must use this structure:
 
 ```text

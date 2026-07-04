@@ -38,6 +38,11 @@ def compute_diagnostics(obs: Observation, candidate: CandidateAction) -> dict[st
         if source_counts
         else 0.0
     )
+    provenance_concentration = max(
+        provenance_concentration,
+        float(candidate.provenance.get("provenance_concentration", 0.0) or 0.0),
+        float(obs.visible_state.get("provenance_concentration", 0.0) or 0.0),
+    )
     transform_names = _transform_names(candidate.provenance.get("transform_history", []))
     shared_source_suspicion = _shared_source_suspicion(obs, candidate, transform_names)
     evidence_missingness = _evidence_missingness(obs, candidate)
@@ -144,6 +149,7 @@ def _shared_source_suspicion(
         "shared_evidence_mask",
         "shared_confidence_bias",
         "shared_feature_corruption",
+        "shared_provenance_concentration",
     }
     score = 0.0
     if any(name in transform_names for name in shared_markers):
@@ -153,6 +159,7 @@ def _shared_source_suspicion(
     if str(obs.visible_state.get("shared_context_source", "")).lower() in {
         "single_retrieval_context",
         "shared_retrieval_context",
+        "shared_provenance_cluster",
     }:
         score = max(score, 0.75)
     if obs.visible_state.get("specialist_agreement") == "high" and obs.visible_state.get(
@@ -160,4 +167,3 @@ def _shared_source_suspicion(
     ) is False:
         score = max(score, 0.65)
     return clamp(score)
-

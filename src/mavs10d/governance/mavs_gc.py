@@ -8,6 +8,7 @@ from mavs10d.core.config import MethodConfig
 from mavs10d.core.hashing import stable_hash
 from mavs10d.core.trace_logging import console_log
 from mavs10d.core.types import CandidateAction, GovernanceDecision, Observation, StepResult
+from mavs10d.governance.ablations import AblationConfig
 from mavs10d.governance.diagnostics import compute_diagnostics, diagnostic_flags
 from mavs10d.governance.escalation import (
     evaluate_mitigation,
@@ -27,6 +28,7 @@ class MAVSGovernance:
         self.severity_sensitivity = float(config.params.get("severity_sensitivity", 0.25))
         self.max_mitigation_relaxation = float(config.params.get("max_mitigation_relaxation", 0.10))
         self.escalation_band = float(config.params.get("escalation_band", 0.08))
+        self.ablation = AblationConfig.from_params(dict(config.params.get("ablation", {})))
         self._seed = 0
 
     def reset(self, seed: int) -> None:
@@ -44,12 +46,22 @@ class MAVSGovernance:
         )
         representation = self._extract_representation(obs, candidate)
         support_scores = self._support_scores(candidate)
-        diagnostics = compute_diagnostics(obs, candidate)
-        severity = aggregate_severity(diagnostics, self.config.params.get("severity_weights"))
+        diagnostics = self.ablation.apply_diagnostics(
+            compute_diagnostics(obs, candidate),
+            obs=obs,
+            seed=self._seed,
+        )
+        severity = self.ablation.apply_severity(
+            aggregate_severity(diagnostics, self.config.params.get("severity_weights")),
+            obs=obs,
+            seed=self._seed,
+        )
         weights = self._rebalance_weights(candidate, diagnostics)
+        weights = self.ablation.apply_weights(weights)
         mitigation = evaluate_mitigation(obs, candidate, diagnostics, self.max_mitigation_relaxation)
         hard_veto = hard_veto_status(obs, candidate, diagnostics)
-        threshold = compute_threshold(
+        threshold = self.ablation.compute_threshold(
+            obs=obs,
             base_threshold=self.base_threshold,
             severity=severity.normalized_severity,
             mitigation_strength=mitigation.strength,
@@ -58,13 +70,16 @@ class MAVSGovernance:
             max_mitigation_relaxation=self.max_mitigation_relaxation,
         )
         consensus = self._consensus(support_scores, weights)
-        decision_result = final_decision_functional(
-            consensus=consensus,
-            severity=severity.normalized_severity,
+        decision_result = self.ablation.apply_decision_policy(
+            final_decision_functional(
+                consensus=consensus,
+                severity=severity.normalized_severity,
+                threshold=threshold.final_threshold,
+                mitigation=mitigation,
+                hard_veto=hard_veto,
+                escalation_band=self.escalation_band,
+            ),
             threshold=threshold.final_threshold,
-            mitigation=mitigation,
-            hard_veto=hard_veto,
-            escalation_band=self.escalation_band,
         )
         trace = format_mavs_trace(
             obs=obs,
@@ -83,6 +98,8 @@ class MAVSGovernance:
         )
         trace["escalation_reason"] = decision_result.escalation_reason
         trace["fallback_action"] = decision_result.fallback_action
+        trace["ablation"] = self.ablation.trace_details()
+        trace["formal_calculus"]["ablation"] = self.ablation.trace_details()
         triggered = decision_result.triggered_checks + [
             f"diagnostic:{name}" for name, active in diagnostic_flags(diagnostics).items() if active
         ]
@@ -135,11 +152,13 @@ class MAVSGovernance:
             "candidate": candidate.to_dict(),
             "seed": self._seed,
         }
+        payload = self.ablation.representation_payload(payload)
         return {
             "hash": stable_hash(payload),
             "visible_state_keys": sorted(obs.visible_state),
             "candidate_action_type": candidate.action_type,
             "specialist_count": len(candidate.specialist_outputs),
+            "representation_sharing": self.ablation.representation_sharing,
         }
 
     def _support_scores(self, candidate: CandidateAction) -> dict[str, float]:
