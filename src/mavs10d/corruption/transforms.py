@@ -241,6 +241,26 @@ def shared_feature_corruption(
     return scenario
 
 
+def shared_provenance_concentration(
+    scenario: dict[str, Any], transform: dict[str, Any], rng: random.Random
+) -> dict[str, Any]:
+    # console.log: phase4.transforms.shared_provenance_concentration
+    console_log("phase4.transforms.shared_provenance_concentration", t=scenario.get("t"))
+    level = float(transform.get("level", 0.95))
+    scenario["shared_provenance_concentration"] = True
+    scenario["provenance_concentration"] = max(
+        float(scenario.get("provenance_concentration", 0.0)),
+        _clamp(level),
+    )
+    scenario["visible_state"] = {
+        **dict(scenario.get("visible_state", {})),
+        "provenance_concentration": scenario["provenance_concentration"],
+        "shared_context_source": "shared_provenance_cluster",
+    }
+    scenario["risk_score"] = _clamp(float(scenario["risk_score"]) + 0.15)
+    return scenario
+
+
 def independent_specialist_failure(
     scenario: dict[str, Any], transform: dict[str, Any], rng: random.Random
 ) -> dict[str, Any]:
@@ -273,6 +293,7 @@ TRANSFORM_HANDLERS = {
     "shared_evidence_mask": shared_evidence_mask,
     "shared_confidence_bias": shared_confidence_bias,
     "shared_feature_corruption": shared_feature_corruption,
+    "shared_provenance_concentration": shared_provenance_concentration,
     "independent_specialist_failure": independent_specialist_failure,
 }
 

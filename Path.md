@@ -1554,6 +1554,118 @@ Next action:
 - Remove generated verification artifacts.
 - Commit and push Phase 4.
 
+### 2026-07-04 - Phase 4 Correction - Red-Team Methodology And Explicit Provenance Concentration
+
+Files changed:
+
+- `src/mavs10d/corruption/transforms.py`
+- `src/mavs10d/external/red_teaming_methodology.py`
+- `configs/experiments/correlated_failure.yaml`
+- `tests/unit/test_correlated_failure.py`
+- `tests/unit/test_external_adapters.py`
+- `Path.md`
+
+Gap found during WorkPlan recheck:
+
+- `WorkPlan.md` Phase 4 scope includes external benchmark framing from red teaming methodology.
+- The previous Phase 4 implementation included HELM Safety, CyberSecEval, SWE-bench, BrowserBench/WebArena, and GAIA adapters, but no explicit red-team methodology adapter.
+- `WorkPlan.md` Phase 4 anti-overfitting requirements state that the final correlated benchmark must include shared provenance concentration.
+- The previous implementation represented provenance concentration indirectly through `shared_retrieval_context`; this correction makes it an explicit named transform in the final correlated benchmark.
+
+Code produced:
+
+- Added `src/mavs10d/external/red_teaming_methodology.py`.
+  - Maps red-team attack families into MAVS task/risk families.
+  - Provides `red_team_methodology_protocol()` with methodology-scaffolding status and explicit no-official-transcript ingestion policy.
+- Added `shared_provenance_concentration` transform in `src/mavs10d/corruption/transforms.py`.
+  - Sets `shared_provenance_concentration=True`.
+  - Sets `provenance_concentration` to the configured level.
+  - Marks the visible shared context source as `shared_provenance_cluster`.
+  - Increases scenario risk deterministically.
+
+Configs produced:
+
+- Updated `configs/experiments/correlated_failure.yaml`.
+  - Added `shared_provenance_concentration` to the late shared-failure phase with `p: 1.00` and `level: 0.95`.
+
+Tests produced or run:
+
+- Updated `tests/unit/test_correlated_failure.py`.
+  - Verifies `shared_provenance_concentration` is applied and sets `provenance_concentration >= 0.95`.
+- Updated `tests/unit/test_external_adapters.py`.
+  - Verifies red-team prompt-injection mapping and methodology scaffold status.
+- Ran `python -m pytest`.
+  - Result: `60 passed in 3.48s`.
+- Ran `python -m compileall src tests`.
+  - Result: all source and test modules compiled.
+- Ran `python scripts\run_experiment.py --config configs\experiments\correlated_failure.yaml`.
+  - Result: `records=216`.
+- Ran `python scripts\validate_traces.py --input results\raw\correlated_failure.jsonl`.
+  - Result: `records=216`.
+- Ran targeted Phase 4 recheck script.
+  - Result: `phase4_recheck=pass`.
+  - Records inspected: `216`.
+  - MAVS-GC records inspected: `54`.
+  - Transform coverage: `independent_specialist_failure`, `residual_drift`, `shared_confidence_bias`, `shared_evidence_mask`, `shared_feature_corruption`, `shared_prompt_injection`, `shared_provenance_concentration`, `shared_retrieval_context`, `shared_wrong_premise`.
+  - Red-team mapping evidence: `correlated_representation_collapse`.
+  - Red-team protocol status: `methodology_scaffolding_only`.
+- Ran 10-seed Phase 4 recheck stress variant with seeds `810-819`.
+  - Result: `phase4_recheck_stress_records=720`.
+- Ran `python scripts\validate_traces.py --input results\raw\correlated_failure_recheck_stress.jsonl`.
+  - Result: `records=720`.
+- Ran stress transform coverage inspection.
+  - Result: `shared_provenance_concentration` present in stress traces.
+
+Results produced:
+
+- Named recheck run: 216 validated records.
+- Stress recheck run: 720 validated records.
+- Total correction runner evidence: 936 validated records.
+- Explicit red-team methodology mapping is now implemented and tested.
+- Explicit shared provenance concentration transform is now implemented, configured, tested, and observed in traces.
+
+Console log statements and comments:
+
+- `src/mavs10d/corruption/transforms.py:247`
+  - Comment: `# console.log: phase4.transforms.shared_provenance_concentration`
+  - Call line: `src/mavs10d/corruption/transforms.py:248`
+  - Purpose: logs explicit shared provenance concentration injection.
+- `src/mavs10d/external/red_teaming_methodology.py:36`
+  - Comment: `# console.log: phase4.external.red_team.map_attack_family`
+  - Call line: `src/mavs10d/external/red_teaming_methodology.py:37`
+  - Purpose: logs red-team attack family mapping.
+- `src/mavs10d/external/red_teaming_methodology.py:51`
+  - Comment: `# console.log: phase4.external.red_team.protocol`
+  - Call line: `src/mavs10d/external/red_teaming_methodology.py:52`
+  - Purpose: logs red-team methodology protocol generation.
+
+Model training:
+
+- No model training was performed.
+- No red-team transcript, official validation, or official test data was ingested.
+- The correction remains category/protocol scaffolding only.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 4 - MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters`.
+- Red-teaming methodology framing: now explicit through `src/mavs10d/external/red_teaming_methodology.py`.
+- Final correlated benchmark includes shared provenance concentration: now explicit through `shared_provenance_concentration` in `configs/experiments/correlated_failure.yaml`.
+- External adapters still map schemas/categories only and do not train on official validation/test data.
+
+Deviations:
+
+- Added `src/mavs10d/external/red_teaming_methodology.py`, which was not listed in the Phase 4 file list.
+
+Reason for deviations:
+
+- The Phase 4 scope explicitly includes red-teaming methodology framing, but the listed files did not allocate a filename for it. Adding a small adapter is the narrowest way to satisfy the stated scope.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push the Phase 4 correction.
+
 Future entries must use this structure:
 
 ```text

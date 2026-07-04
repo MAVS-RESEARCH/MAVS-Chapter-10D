@@ -30,6 +30,9 @@ experiment:
                 p: 1.00
               - type: shared_retrieval_context
                 p: 1.00
+              - type: shared_provenance_concentration
+                p: 1.00
+                level: 0.95
               - type: shared_prompt_injection
                 p: 0.85
               - type: shared_evidence_mask
@@ -78,4 +81,3 @@ experiment:
     benchmark_kind: correlated_representation_collapse
     seed_policy: disjoint_from_phase2_and_phase3_development_seeds
     model_training: none
-

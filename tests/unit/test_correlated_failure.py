@@ -19,6 +19,7 @@ def test_correlated_transforms_inject_all_shared_failure_channels() -> None:
     transforms = [
         {"type": "shared_wrong_premise"},
         {"type": "shared_retrieval_context"},
+        {"type": "shared_provenance_concentration", "level": 0.95},
         {"type": "shared_prompt_injection"},
         {"type": "shared_evidence_mask"},
         {"type": "shared_confidence_bias", "strength": 0.15},
@@ -30,6 +31,7 @@ def test_correlated_transforms_inject_all_shared_failure_channels() -> None:
     for key in [
         "shared_wrong_premise",
         "shared_retrieval_context",
+        "shared_provenance_concentration",
         "shared_prompt_injection",
         "shared_evidence_mask",
         "shared_confidence_bias",
@@ -38,6 +40,7 @@ def test_correlated_transforms_inject_all_shared_failure_channels() -> None:
         assert transformed[key] is True
     assert transformed["unsafe"] is True
     assert transformed["evidence_visible"] is False
+    assert transformed["provenance_concentration"] >= 0.95
 
 
 def test_correlated_environment_marks_comparison_design() -> None:
@@ -55,4 +58,3 @@ def test_correlated_environment_marks_comparison_design() -> None:
         "independent_specialist_failure",
         "shared_representation",
     }
-
