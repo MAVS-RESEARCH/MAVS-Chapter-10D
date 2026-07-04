@@ -117,7 +117,7 @@ Next action:
 | Phase 3 | Modern Governance Baselines And Abstention Methods | Completed | Implemented and verified with unit tests, integration tests, config run, trace validation, registry checks, and baseline stress test. |
 | Phase 4 | MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters | Not started | Depends on Phases 1-3. |
 | Phase 5 | Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol | Not started | Depends on MAVS-GC implementation. |
-| Phase 6 | Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline | Not started | Final execution and reporting phase. |
+| Phase 6 | Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline | Implemented | Final suite config, metrics, reports, and bounded stress evidence generated. |
 
 ## Implementation Entries
 
@@ -2116,6 +2116,420 @@ Deviations:
 Next action:
 
 - Commit and push the Phase 5 recheck correction.
+
+### 2026-07-04 - Phase 6 - Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline
+
+Files changed:
+
+- `src/mavs10d/metrics/episode_metrics.py`
+- `src/mavs10d/metrics/safety_utility.py`
+- `src/mavs10d/metrics/calibration.py`
+- `src/mavs10d/metrics/dynamic.py`
+- `src/mavs10d/metrics/collapse.py`
+- `src/mavs10d/metrics/stats.py`
+- `src/mavs10d/reports/tables.py`
+- `src/mavs10d/reports/plots.py`
+- `src/mavs10d/reports/failure_cards.py`
+- `src/mavs10d/reports/markdown.py`
+- `src/mavs10d/baselines/sanity.py`
+- `src/mavs10d/core/registry.py`
+- `scripts/run_suite.py`
+- `scripts/aggregate_results.py`
+- `scripts/make_report.py`
+- `scripts/make_failure_cards.py`
+- `configs/suites/dynamic_governance_v1.yaml`
+- `tests/unit/test_metrics.py`
+- `tests/unit/test_stats.py`
+- `tests/unit/test_failure_cards.py`
+- `tests/integration/test_report_generation.py`
+- `pyproject.toml`
+- `Path.md`
+
+Code produced:
+
+- Implemented Phase 6 trace ingestion and step/episode metric row generation in `src/mavs10d/metrics/episode_metrics.py`.
+- Implemented required safety and utility metrics in `src/mavs10d/metrics/safety_utility.py`.
+  - Unsafe Acceptance Rate.
+  - False Rejection Rate.
+  - Escalation Rate.
+  - Safety-Utility Frontier over threshold sweeps.
+  - Catastrophic Episode Rate.
+  - Mean reward.
+- Implemented calibration bins and calibration error in `src/mavs10d/metrics/calibration.py`.
+- Implemented adaptation lag, recovery lag, trace completeness, and audit-trace completeness in `src/mavs10d/metrics/dynamic.py`.
+- Implemented correlated-collapse sensitivity, collapse-case extraction, and negative-control rows in `src/mavs10d/metrics/collapse.py`.
+- Implemented mean, median, standard deviation, 95% bootstrap confidence intervals, paired seed comparison, and worst-case episode extraction in `src/mavs10d/metrics/stats.py`.
+- Implemented report table writers in `src/mavs10d/reports/tables.py`.
+  - Generates CSV and Markdown tables.
+- Implemented dependency-light SVG figure generation in `src/mavs10d/reports/plots.py`.
+  - Generates `unsafe_acceptance_rate.svg`.
+  - Generates `mean_reward.svg`.
+- Implemented failure-card generation in `src/mavs10d/reports/failure_cards.py`.
+  - One markdown card per serious unsafe acceptance.
+  - Includes episode id, step, environment, corruption phase, method, expected decision, actual decision, unsafe flag, specialist state, MAVS trace, suspected cause, and proposed fix.
+- Implemented final README generation with exact reproduction commands and claim limitations in `src/mavs10d/reports/markdown.py`.
+- Implemented `AlwaysAcceptBaseline` and `AlwaysRejectBaseline` in `src/mavs10d/baselines/sanity.py`.
+  - These are the accept-everything and reject-everything sanity baselines required by Phase 6.
+- Registered `always_accept` and `always_reject` in `src/mavs10d/core/registry.py`.
+- Implemented `scripts/run_suite.py`.
+  - Loads `configs/suites/dynamic_governance_v1.yaml`.
+  - Validates final seed ranges.
+  - Fails if an artifact-backed method lacks training-card/manifest files.
+  - Validates declared WorkPlan minimums.
+  - Supports bounded execution flags for local stress verification without changing suite minimum declarations.
+- Implemented `scripts/aggregate_results.py`.
+  - Aggregates raw JSONL traces into `summary.parquet`, `step_metrics.csv`, `episode_metrics.csv`, `safety_utility_frontier.csv`, and `worst_case_episodes.csv`.
+- Implemented `scripts/make_failure_cards.py`.
+- Implemented `scripts/make_report.py`.
+- Added `pyarrow>=14.0` to `pyproject.toml` because Phase 6's required aggregation command writes `summary.parquet`.
+
+Configs produced:
+
+- Added `configs/suites/dynamic_governance_v1.yaml`.
+- Suite entries cover all required experiments:
+  - E1 Dynamic corruption: Text Safety, Tool-Use, Synthetic Ops.
+  - E2 Correlated failure: Multi-Agent Operations and Correlated Collapse.
+  - E3 Governance baseline comparison: Text Safety, Tool-Use, Synthetic Ops with 11 modern baselines, 2 sanity baselines, and full MAVS-GC.
+  - E4 Ablation study: Text Safety, Tool-Use, Synthetic Ops with all 16 Phase 5 ablations.
+  - E5 Stress schedule sweep: Synthetic Ops and Tool-Use, corruption sweep from `0.05` to `0.60`.
+- Suite declares required WorkPlan minimum run sizes:
+  - E1: 30 seeds x 240 steps on three environments.
+  - E2: 50 seeds x 160 steps on two environments.
+  - E3: 20 seeds x 120 steps on three first-pass environments with all baselines and full MAVS-GC.
+  - E4: 30 seeds x 160 steps on three environments with full MAVS-GC and required ablations.
+  - E5: 30 seeds x 240 steps on Synthetic Ops and Tool-Use.
+- All suite seeds are final-range seeds beginning at `10000`.
+- No training is configured in the Phase 6 suite.
+
+Tests produced:
+
+- Added `tests/unit/test_metrics.py`.
+  - Verifies UAR, FRR, catastrophic episode rate, adaptation lag, recovery lag, trace completeness, calibration error, collapse sensitivity, and safety-utility frontier.
+- Added `tests/unit/test_stats.py`.
+  - Verifies bootstrap CI, metric distribution, paired seed comparison, and worst-case episode ordering.
+- Added `tests/unit/test_failure_cards.py`.
+  - Verifies required failure-card fields and card file generation.
+- Added `tests/integration/test_report_generation.py`.
+  - Runs `aggregate_results.py`, `make_failure_cards.py`, and `make_report.py` on sample traces.
+  - Verifies `README.md`, `summary_metrics.csv`, failure cards, and claim limitations.
+
+Verification and stress evidence:
+
+- Ran `python -m pytest tests\unit\test_metrics.py tests\unit\test_stats.py tests\unit\test_failure_cards.py tests\integration\test_report_generation.py`.
+  - Result: `5 passed`.
+- Ran `python scripts\run_suite.py --suite configs\suites\dynamic_governance_v1.yaml --dry-run`.
+  - Result: 13 suite experiments validated.
+  - Full declared run sizes validated:
+    - E1 entries: `seeds=30`, `episode_steps=240`.
+    - E2 entries: `seeds=50`, `episode_steps=160`.
+    - E3 entries: `seeds=20`, `episode_steps=120`, `methods=14`.
+    - E4 entries: `seeds=30`, `episode_steps=160`, `methods=16`.
+    - E5 entries: `seeds=30`, `episode_steps=240`.
+- Ran bounded live stress execution:
+  - Command: `python scripts\run_suite.py --suite configs\suites\dynamic_governance_v1.yaml --max-seeds 1 --max-episode-steps 4 --output-dir results\raw\phase6_stress`
+  - Result: 13 trace files.
+  - Trace records generated: `388`.
+  - Unique environment families in summary: `5`.
+  - Unique methods in summary: `36`.
+  - This bounded execution is stress evidence for all Phase 6 code paths; the full unbounded suite is encoded and dry-run validated by config.
+- Ran `python scripts\aggregate_results.py --input results\raw\phase6_stress --out results\processed\phase6_stress_summary.parquet`.
+  - Result: `summary_rows=97`.
+  - `step_metrics.csv`: `388` step rows.
+  - `episode_metrics.csv`: `97` episode rows.
+  - `safety_utility_frontier.csv`: generated.
+  - `worst_case_episodes.csv`: generated.
+- Ran `python scripts\make_failure_cards.py --input results\raw\phase6_stress --out results\reports\dynamic_validation_v1\failure_cards`.
+  - Result: `4` failure cards.
+- Ran `python scripts\make_report.py --summary results\processed\phase6_stress_summary.parquet --out results\reports\dynamic_validation_v1`.
+  - Generated `results/reports/dynamic_validation_v1/README.md`.
+  - Generated `results/reports/dynamic_validation_v1/summary_metrics.csv`.
+  - Generated `results/reports/dynamic_validation_v1/summary_metrics.md`.
+  - Generated `results/figures/unsafe_acceptance_rate.svg`.
+  - Generated `results/figures/mean_reward.svg`.
+- Ran trace validation script over all bounded stress JSONL files.
+  - Result: `trace_files=13`, `trace_records=388`, `trace_errors=0`.
+- Ran Phase 6 compliance script.
+  - Result: `phase6_compliance=pass`.
+  - Suite experiments: `13`.
+  - Summary rows: `97`.
+  - Unique environment families: `5`.
+  - Unique methods: `36`.
+  - Failure cards: `4`.
+  - README contains all required claim limitations.
+- Ran `python -m pytest`.
+  - Result: `78 passed`.
+
+Results produced:
+
+- `results/raw/phase6_stress/*.jsonl`
+- `results/raw/phase6_stress/suite_run_manifest.json`
+- `results/processed/phase6_stress_summary.parquet`
+- `results/processed/step_metrics.csv`
+- `results/processed/episode_metrics.csv`
+- `results/processed/safety_utility_frontier.csv`
+- `results/processed/worst_case_episodes.csv`
+- `results/processed/suite_run_manifest.json`
+- `results/reports/dynamic_validation_v1/README.md`
+- `results/reports/dynamic_validation_v1/summary_metrics.csv`
+- `results/reports/dynamic_validation_v1/summary_metrics.md`
+- `results/reports/dynamic_validation_v1/failure_cards/failure_0001.md`
+- `results/reports/dynamic_validation_v1/failure_cards/failure_0002.md`
+- `results/reports/dynamic_validation_v1/failure_cards/failure_0003.md`
+- `results/reports/dynamic_validation_v1/failure_cards/failure_0004.md`
+- `results/figures/unsafe_acceptance_rate.svg`
+- `results/figures/mean_reward.svg`
+
+Console.log additions and locations:
+
+- `src/mavs10d/metrics/episode_metrics.py:13`
+  - Comment: `# console.log: phase6.metrics.trace_paths.start`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:14`
+- `src/mavs10d/metrics/episode_metrics.py:20`
+  - Comment: `# console.log: phase6.metrics.trace_paths.complete`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:21`
+- `src/mavs10d/metrics/episode_metrics.py:26`
+  - Comment: `# console.log: phase6.metrics.load_trace_records.start`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:27`
+- `src/mavs10d/metrics/episode_metrics.py:39`
+  - Comment: `# console.log: phase6.metrics.load_trace_records.complete`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:40`
+- `src/mavs10d/metrics/episode_metrics.py:45`
+  - Comment: `# console.log: phase6.metrics.iter_step_rows.start`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:46`
+- `src/mavs10d/metrics/episode_metrics.py:49`
+  - Comment: `# console.log: phase6.metrics.iter_step_rows.complete`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:50`
+- `src/mavs10d/metrics/episode_metrics.py:108`
+  - Comment: `# console.log: phase6.metrics.step_rows_from_input.start`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:109`
+- `src/mavs10d/metrics/episode_metrics.py:112`
+  - Comment: `# console.log: phase6.metrics.step_rows_from_input.complete`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:113`
+- `src/mavs10d/metrics/episode_metrics.py:118`
+  - Comment: `# console.log: phase6.metrics.episode_rows.start`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:119`
+- `src/mavs10d/metrics/episode_metrics.py:155`
+  - Comment: `# console.log: phase6.metrics.episode_rows.complete`
+  - Call line: `src/mavs10d/metrics/episode_metrics.py:156`
+- `src/mavs10d/metrics/safety_utility.py:37`
+  - Comment: `# console.log: phase6.metrics.safety_utility.summary.start`
+  - Call line: `src/mavs10d/metrics/safety_utility.py:38`
+- `src/mavs10d/metrics/safety_utility.py:46`
+  - Comment: `# console.log: phase6.metrics.safety_utility.summary.complete`
+  - Call line: `src/mavs10d/metrics/safety_utility.py:47`
+- `src/mavs10d/metrics/safety_utility.py:52`
+  - Comment: `# console.log: phase6.metrics.safety_utility.frontier.start`
+  - Call line: `src/mavs10d/metrics/safety_utility.py:53`
+- `src/mavs10d/metrics/safety_utility.py:77`
+  - Comment: `# console.log: phase6.metrics.safety_utility.frontier.complete`
+  - Call line: `src/mavs10d/metrics/safety_utility.py:78`
+- `src/mavs10d/metrics/calibration.py:9`
+  - Comment: `# console.log: phase6.metrics.calibration.bins.start`
+  - Call line: `src/mavs10d/metrics/calibration.py:10`
+- `src/mavs10d/metrics/calibration.py:34`
+  - Comment: `# console.log: phase6.metrics.calibration.bins.complete`
+  - Call line: `src/mavs10d/metrics/calibration.py:35`
+- `src/mavs10d/metrics/calibration.py:40`
+  - Comment: `# console.log: phase6.metrics.calibration.error.start`
+  - Call line: `src/mavs10d/metrics/calibration.py:41`
+- `src/mavs10d/metrics/calibration.py:46`
+  - Comment: `# console.log: phase6.metrics.calibration.error.complete`
+  - Call line: `src/mavs10d/metrics/calibration.py:47`
+- `src/mavs10d/metrics/dynamic.py:11`
+  - Comment: `# console.log: phase6.metrics.dynamic.adaptation_lag.start`
+  - Call line: `src/mavs10d/metrics/dynamic.py:12`
+- `src/mavs10d/metrics/dynamic.py:30`
+  - Comment: `# console.log: phase6.metrics.dynamic.adaptation_lag.complete`
+  - Call line: `src/mavs10d/metrics/dynamic.py:31`
+- `src/mavs10d/metrics/dynamic.py:36`
+  - Comment: `# console.log: phase6.metrics.dynamic.recovery_lag.start`
+  - Call line: `src/mavs10d/metrics/dynamic.py:37`
+- `src/mavs10d/metrics/dynamic.py:55`
+  - Comment: `# console.log: phase6.metrics.dynamic.recovery_lag.complete`
+  - Call line: `src/mavs10d/metrics/dynamic.py:56`
+- `src/mavs10d/metrics/dynamic.py:61`
+  - Comment: `# console.log: phase6.metrics.dynamic.trace_completeness.start`
+  - Call line: `src/mavs10d/metrics/dynamic.py:62`
+- `src/mavs10d/metrics/dynamic.py:69`
+  - Comment: `# console.log: phase6.metrics.dynamic.trace_completeness.complete`
+  - Call line: `src/mavs10d/metrics/dynamic.py:70`
+- `src/mavs10d/metrics/collapse.py:11`
+  - Comment: `# console.log: phase6.metrics.collapse.sensitivity.start`
+  - Call line: `src/mavs10d/metrics/collapse.py:12`
+- `src/mavs10d/metrics/collapse.py:31`
+  - Comment: `# console.log: phase6.metrics.collapse.sensitivity.complete`
+  - Call line: `src/mavs10d/metrics/collapse.py:32`
+- `src/mavs10d/metrics/collapse.py:37`
+  - Comment: `# console.log: phase6.metrics.collapse.cases.start`
+  - Call line: `src/mavs10d/metrics/collapse.py:38`
+- `src/mavs10d/metrics/collapse.py:46`
+  - Comment: `# console.log: phase6.metrics.collapse.cases.complete`
+  - Call line: `src/mavs10d/metrics/collapse.py:47`
+- `src/mavs10d/metrics/collapse.py:52`
+  - Comment: `# console.log: phase6.metrics.collapse.negative_controls.start`
+  - Call line: `src/mavs10d/metrics/collapse.py:53`
+- `src/mavs10d/metrics/collapse.py:63`
+  - Comment: `# console.log: phase6.metrics.collapse.negative_controls.complete`
+  - Call line: `src/mavs10d/metrics/collapse.py:64`
+- `src/mavs10d/metrics/stats.py:12`
+  - Comment: `# console.log: phase6.metrics.stats.bootstrap_ci.start`
+  - Call line: `src/mavs10d/metrics/stats.py:14`
+- `src/mavs10d/metrics/stats.py:22`
+  - Comment: `# console.log: phase6.metrics.stats.bootstrap_ci.complete`
+  - Call line: `src/mavs10d/metrics/stats.py:23`
+- `src/mavs10d/metrics/stats.py:28`
+  - Comment: `# console.log: phase6.metrics.stats.distribution.start`
+  - Call line: `src/mavs10d/metrics/stats.py:30`
+- `src/mavs10d/metrics/stats.py:41`
+  - Comment: `# console.log: phase6.metrics.stats.distribution.complete`
+  - Call line: `src/mavs10d/metrics/stats.py:42`
+- `src/mavs10d/metrics/stats.py:53`
+  - Comment: `# console.log: phase6.metrics.stats.paired_seed.start`
+  - Call line: `src/mavs10d/metrics/stats.py:54`
+- `src/mavs10d/metrics/stats.py:69`
+  - Comment: `# console.log: phase6.metrics.stats.paired_seed.complete`
+  - Call line: `src/mavs10d/metrics/stats.py:70`
+- `src/mavs10d/metrics/stats.py:75`
+  - Comment: `# console.log: phase6.metrics.stats.worst_case.start`
+  - Call line: `src/mavs10d/metrics/stats.py:76`
+- `src/mavs10d/metrics/stats.py:80`
+  - Comment: `# console.log: phase6.metrics.stats.worst_case.complete`
+  - Call line: `src/mavs10d/metrics/stats.py:81`
+- `src/mavs10d/reports/tables.py:23`
+  - Comment: `# console.log: phase6.reports.tables.write.start`
+  - Call line: `src/mavs10d/reports/tables.py:24`
+- `src/mavs10d/reports/tables.py:32`
+  - Comment: `# console.log: phase6.reports.tables.write.complete`
+  - Call line: `src/mavs10d/reports/tables.py:33`
+- `src/mavs10d/reports/plots.py:11`
+  - Comment: `# console.log: phase6.reports.plots.write.start`
+  - Call line: `src/mavs10d/reports/plots.py:12`
+- `src/mavs10d/reports/plots.py:19`
+  - Comment: `# console.log: phase6.reports.plots.write.complete`
+  - Call line: `src/mavs10d/reports/plots.py:20`
+- `src/mavs10d/reports/failure_cards.py:12`
+  - Comment: `# console.log: phase6.reports.failure_cards.filter.start`
+  - Call line: `src/mavs10d/reports/failure_cards.py:13`
+- `src/mavs10d/reports/failure_cards.py:19`
+  - Comment: `# console.log: phase6.reports.failure_cards.filter.complete`
+  - Call line: `src/mavs10d/reports/failure_cards.py:20`
+- `src/mavs10d/reports/failure_cards.py:55`
+  - Comment: `# console.log: phase6.reports.failure_cards.write.start`
+  - Call line: `src/mavs10d/reports/failure_cards.py:56`
+- `src/mavs10d/reports/failure_cards.py:70`
+  - Comment: `# console.log: phase6.reports.failure_cards.write.complete`
+  - Call line: `src/mavs10d/reports/failure_cards.py:71`
+- `src/mavs10d/reports/markdown.py:19`
+  - Comment: `# console.log: phase6.reports.markdown.read_summary.start`
+  - Call line: `src/mavs10d/reports/markdown.py:20`
+- `src/mavs10d/reports/markdown.py:26`
+  - Comment: `# console.log: phase6.reports.markdown.read_summary.complete`
+  - Call line: `src/mavs10d/reports/markdown.py:27`
+- `src/mavs10d/reports/markdown.py:39`
+  - Comment: `# console.log: phase6.reports.markdown.write.start`
+  - Call line: `src/mavs10d/reports/markdown.py:40`
+- `src/mavs10d/reports/markdown.py:84`
+  - Comment: `# console.log: phase6.reports.markdown.write.complete`
+  - Call line: `src/mavs10d/reports/markdown.py:85`
+- `src/mavs10d/baselines/sanity.py:18`
+  - Comment: `# console.log: phase6.sanity.always_accept.decide`
+  - Call line: `src/mavs10d/baselines/sanity.py:19`
+- `src/mavs10d/baselines/sanity.py:52`
+  - Comment: `# console.log: phase6.sanity.always_reject.decide`
+  - Call line: `src/mavs10d/baselines/sanity.py:53`
+- `scripts/run_suite.py:41`
+  - Comment: `# console.log: phase6.script.run_suite.load.start`
+  - Call line: `scripts/run_suite.py:42`
+- `scripts/run_suite.py:48`
+  - Comment: `# console.log: phase6.script.run_suite.load.complete`
+  - Call line: `scripts/run_suite.py:49`
+- `scripts/run_suite.py:61`
+  - Comment: `# console.log: phase6.script.run_suite.config.start`
+  - Call line: `scripts/run_suite.py:62`
+- `scripts/run_suite.py:97`
+  - Comment: `# console.log: phase6.script.run_suite.config.complete`
+  - Call line: `scripts/run_suite.py:98`
+- `scripts/run_suite.py:109`
+  - Comment: `# console.log: phase6.script.run_suite.validate.start`
+  - Call line: `scripts/run_suite.py:110`
+- `scripts/run_suite.py:126`
+  - Comment: `# console.log: phase6.script.run_suite.validate.complete`
+  - Call line: `scripts/run_suite.py:127`
+- `scripts/run_suite.py:139`
+  - Comment: `# console.log: phase6.script.run_suite.start`
+  - Call line: `scripts/run_suite.py:140`
+- `scripts/run_suite.py:168`
+  - Comment: `# console.log: phase6.script.run_suite.complete`
+  - Call line: `scripts/run_suite.py:169`
+- `scripts/aggregate_results.py:31`
+  - Comment: `# console.log: phase6.script.aggregate.start`
+  - Call line: `scripts/aggregate_results.py:32`
+- `scripts/aggregate_results.py:43`
+  - Comment: `# console.log: phase6.script.aggregate.complete`
+  - Call line: `scripts/aggregate_results.py:44`
+- `scripts/aggregate_results.py:49`
+  - Comment: `# console.log: phase6.script.aggregate.summary_rows.start`
+  - Call line: `scripts/aggregate_results.py:50`
+- `scripts/aggregate_results.py:84`
+  - Comment: `# console.log: phase6.script.aggregate.summary_rows.complete`
+  - Call line: `scripts/aggregate_results.py:85`
+- `scripts/make_failure_cards.py:25`
+  - Comment: `# console.log: phase6.script.make_failure_cards.start`
+  - Call line: `scripts/make_failure_cards.py:26`
+- `scripts/make_failure_cards.py:28`
+  - Comment: `# console.log: phase6.script.make_failure_cards.complete`
+  - Call line: `scripts/make_failure_cards.py:29`
+- `scripts/make_report.py:27`
+  - Comment: `# console.log: phase6.script.make_report.start`
+  - Call line: `scripts/make_report.py:28`
+- `scripts/make_report.py:42`
+  - Comment: `# console.log: phase6.script.make_report.complete`
+  - Call line: `scripts/make_report.py:43`
+
+Model training:
+
+- No training was performed in Phase 6.
+- Phase 6 suite metadata sets `model_training: none`.
+- Suite runner fails if any method references a model artifact directory without required Phase 5 training-card/manifest files.
+- Final suite seeds are in the `10000-19999` final seed range.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes for Phase 6 implementation, suite configuration, metrics, reports, failure cards, anti-overfitting gates, and reproducible commands.
+- Matching WorkPlan section: `Phase 6 - Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline`.
+- Required experiments E1-E5: encoded in `configs/suites/dynamic_governance_v1.yaml` and dry-run validated.
+- Required minimum runs: declared in suite config and validated by `scripts/run_suite.py --dry-run`.
+- At least 3 dynamic environments implemented and used in stress execution: yes, 5 unique environment families in bounded stress summary.
+- At least 6 modern baselines implemented and used: yes, E3 suite entries include 11 modern baselines plus full MAVS-GC and 2 sanity baselines; bounded stress summary included 36 unique method ids.
+- At least 5 MAVS ablations implemented and used: yes, E4 suite entries include all 16 Phase 5 ablations.
+- Every experiment reruns from config: yes, through `scripts/run_suite.py --suite configs/suites/dynamic_governance_v1.yaml`.
+- Every decision has an audit trace: yes, bounded stress trace validation returned `trace_errors=0`; metrics also reported trace completeness.
+- Aggregate metrics include uncertainty intervals: yes, summary rows include bootstrap CI fields from `metric_distribution`.
+- Failure cards exist for major unsafe acceptances: yes, 4 generated failure cards.
+- Final report includes negative results and collapse cases: yes, `results/reports/dynamic_validation_v1/README.md` is generated by `write_final_readme`.
+- Final README states what is not proven:
+  - no frontier-model claim: yes.
+  - no industrial-scale claim: yes.
+  - no universal robustness claim: yes.
+  - no proof that MAVS solves correlated failure: yes.
+  - no claim that MAVS beats all governance methods: yes.
+- `Path.md` contains an implementation-complete ledger mapped to every phase: yes, phase table updated and this Phase 6 entry added.
+
+Deviations:
+
+- The live stress execution used bounded flags: `--max-seeds 1 --max-episode-steps 4`.
+- The full unbounded suite was not executed in this turn because the full declared suite would generate hundreds of thousands of records and very large console output. The full suite design is encoded and dry-run validated; the bounded execution validates all Phase 6 code paths and generated report artifacts.
+- Added `src/mavs10d/baselines/sanity.py` beyond the exact Phase 6 "Files To Make" list.
+
+Reason for deviations:
+
+- Bounded live execution keeps the local verification tractable while preserving the exact full-suite declarations and reproduction command.
+- Sanity baselines are required by Phase 6 anti-overfitting requirements: accept-everything and reject-everything sanity baselines must be included for UAR/FRR interpretation.
+
+Next action:
+
+- Remove Python cache artifacts.
+- Commit and push Phase 6.
 
 Future entries must use this structure:
 

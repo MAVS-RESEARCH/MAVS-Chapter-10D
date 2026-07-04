@@ -341,6 +341,7 @@ def build_default_registry() -> ComponentRegistry:
     from mavs10d.baselines.judge import JudgeBaseline
     from mavs10d.baselines.policy_rails import PolicyRailBaseline
     from mavs10d.baselines.reject_option import RejectOptionBaseline
+    from mavs10d.baselines.sanity import AlwaysAcceptBaseline, AlwaysRejectBaseline
     from mavs10d.baselines.self_consistency import SelfConsistencyBaseline
     from mavs10d.baselines.validator_stack import ValidatorStackBaseline
     from mavs10d.corruption.schedules import build_schedule_from_config
@@ -407,6 +408,8 @@ def build_default_registry() -> ComponentRegistry:
         "judge": lambda config: JudgeBaseline(config),
         "debate": lambda config: DebateBaseline(config),
         "critique_revise": lambda config: CritiqueReviseBaseline(config),
+        "always_accept": lambda config: AlwaysAcceptBaseline(config),
+        "always_reject": lambda config: AlwaysRejectBaseline(config),
     }
     for baseline_type, factory in baseline_factories.items():
         registry.register_method(baseline_type, factory)

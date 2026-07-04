@@ -1,0 +1,93 @@
+[
+  {
+    "config_hash": "aa12d2bdc0b593bfcae114f873724d1ce2e79255fce229aaa7ac6d5a842b1aa3",
+    "id": "E1_text_safety_dynamic",
+    "output": "results\\raw\\phase6_stress\\E1_dynamic_corruption_text_safety.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "7adb12de64904b5913f94fcb9400c89b5881130d57d3e481d5b4ff0645f2a23d",
+    "id": "E1_tool_use_dynamic",
+    "output": "results\\raw\\phase6_stress\\E1_dynamic_corruption_tool_use.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "a6af0e99dd6dd52b7fdbc46d03c8a75a91c94995e26d2fd90ed2ac5cda12906b",
+    "id": "E1_synthetic_ops_dynamic",
+    "output": "results\\raw\\phase6_stress\\E1_dynamic_corruption_synthetic_ops.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "78230b1dbda3a410ed27269c8186e5f349319bf426e6a91dd1dc839106ea8c9a",
+    "id": "E2_multi_agent_correlated",
+    "output": "results\\raw\\phase6_stress\\E2_correlated_failure_multi_agent.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "6f3b516eda6510fddac1d9552935036000c321f3241d29ae2ca7da698fbdc3dd",
+    "id": "E2_correlated_collapse",
+    "output": "results\\raw\\phase6_stress\\E2_correlated_failure_collapse.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "dc77aa2ac4b12ca141a2d41627bc1b7cfa15019be20436a8e701c8362d2c8f29",
+    "id": "E3_text_safety_baselines",
+    "output": "results\\raw\\phase6_stress\\E3_governance_baseline_text_safety.jsonl",
+    "records": 56,
+    "status": "complete"
+  },
+  {
+    "config_hash": "dc77aa2ac4b12ca141a2d41627bc1b7cfa15019be20436a8e701c8362d2c8f29",
+    "id": "E3_tool_use_baselines",
+    "output": "results\\raw\\phase6_stress\\E3_governance_baseline_tool_use.jsonl",
+    "records": 56,
+    "status": "complete"
+  },
+  {
+    "config_hash": "dc77aa2ac4b12ca141a2d41627bc1b7cfa15019be20436a8e701c8362d2c8f29",
+    "id": "E3_synthetic_ops_baselines",
+    "output": "results\\raw\\phase6_stress\\E3_governance_baseline_synthetic_ops.jsonl",
+    "records": 56,
+    "status": "complete"
+  },
+  {
+    "config_hash": "8e2cfc2229a04e876ad43df7993ec67313ae9f48e1c67b01c1b5418016a9abf5",
+    "id": "E4_text_safety_ablations",
+    "output": "results\\raw\\phase6_stress\\E4_ablation_text_safety.jsonl",
+    "records": 64,
+    "status": "complete"
+  },
+  {
+    "config_hash": "8e2cfc2229a04e876ad43df7993ec67313ae9f48e1c67b01c1b5418016a9abf5",
+    "id": "E4_tool_use_ablations",
+    "output": "results\\raw\\phase6_stress\\E4_ablation_tool_use.jsonl",
+    "records": 64,
+    "status": "complete"
+  },
+  {
+    "config_hash": "8e2cfc2229a04e876ad43df7993ec67313ae9f48e1c67b01c1b5418016a9abf5",
+    "id": "E4_synthetic_ops_ablations",
+    "output": "results\\raw\\phase6_stress\\E4_ablation_synthetic_ops.jsonl",
+    "records": 64,
+    "status": "complete"
+  },
+  {
+    "config_hash": "0b7fcebfb909c592d58e7094e2b07bdfd0d648d305f01db0f234efbf87266e2c",
+    "id": "E5_synthetic_sweep",
+    "output": "results\\raw\\phase6_stress\\E5_stress_sweep_synthetic_ops.jsonl",
+    "records": 4,
+    "status": "complete"
+  },
+  {
+    "config_hash": "0b7fcebfb909c592d58e7094e2b07bdfd0d648d305f01db0f234efbf87266e2c",
+    "id": "E5_tool_sweep",
+    "output": "results\\raw\\phase6_stress\\E5_stress_sweep_tool_use.jsonl",
+    "records": 4,
+    "status": "complete"
+  }
+]
