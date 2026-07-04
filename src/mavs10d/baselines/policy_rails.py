@@ -91,7 +91,11 @@ class PolicyRailBaseline:
         text = f"{prompt} {content}".lower()
         block = False
         reason = "not_triggered"
-        if rail_type == "jailbreak_heuristic":
+        if rail_type == "input_check":
+            patterns = rail.get("patterns", [])
+            block = any(str(pattern).lower() in prompt.lower() for pattern in patterns)
+            reason = "input_check_pattern" if block else reason
+        elif rail_type == "jailbreak_heuristic":
             patterns = rail.get("patterns", ["ignore prior", "bypass", "jailbreak"])
             block = any(str(pattern).lower() in text for pattern in patterns)
             reason = "jailbreak_pattern" if block else reason
@@ -112,10 +116,9 @@ class PolicyRailBaseline:
             patterns = rail.get("patterns", [])
             block = any(str(pattern).lower() in content.lower() for pattern in patterns)
             reason = "blocked_output" if block else reason
-        elif rail_type == "risk_predicate":
+        elif rail_type in {"risk_predicate", "deterministic_predicate"}:
             block = candidate_risk(candidate) >= float(rail.get("min_risk", 0.70))
-            reason = "risk_predicate" if block else reason
+            reason = rail_type if block else reason
         else:
             raise ValueError(f"Unsupported policy rail type: {rail_type}")
         return RailResult(name=name, block=block, risk=clamp(risk if block else 0.0), reason=reason)
-

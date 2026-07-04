@@ -1032,6 +1032,116 @@ Next action:
 - Remove generated verification artifacts.
 - Commit and push Phase 3.
 
+### 2026-07-04 - Phase 3 Correction - Policy Rail Coverage Recheck
+
+Files changed:
+
+- `src/mavs10d/baselines/policy_rails.py`
+- `configs/baselines/rails.yaml`
+- `tests/unit/test_policy_rails.py`
+- `Path.md`
+
+Gap found during WorkPlan recheck:
+
+- `WorkPlan.md` Phase 3 states that `PolicyRailBaseline` must support input checks, output checks, topic blocks, jailbreak heuristics, PII checks, unsafe tool-call rules, and deterministic policy predicates.
+- The previous implementation supported jailbreak heuristics, PII checks, unsafe tool-call rules, topic blocks, output blocks, and risk predicates, but it did not expose an explicit `input_check` rail type.
+- The previous default rail YAML also did not instantiate the already-supported `output_block` category, and the predicate rail name did not explicitly expose the `deterministic_predicate` wording from the WorkPlan.
+
+Code produced:
+
+- Added explicit `input_check` evaluation in `src/mavs10d/baselines/policy_rails.py`.
+  - Code lines: `src/mavs10d/baselines/policy_rails.py:94-97`.
+  - Behavior: evaluates configured patterns only against the input prompt and returns `input_check_pattern` when triggered.
+- Added `deterministic_predicate` as a supported alias beside `risk_predicate`.
+  - Code lines: `src/mavs10d/baselines/policy_rails.py:119-121`.
+  - Behavior: keeps the existing deterministic candidate risk predicate logic while exposing the exact WorkPlan category name.
+- No model training was added or required. Phase 3 remains deterministic heuristic baseline work.
+
+Configs produced:
+
+- Added `input_check_rail` to `configs/baselines/rails.yaml`.
+  - Config lines: `configs/baselines/rails.yaml:2-7`.
+- Added `output_block_rail` to the default YAML so the default rail stack instantiates output checks.
+  - Config lines: `configs/baselines/rails.yaml:30-35`.
+- Added `deterministic_predicate_rail` to the default YAML.
+  - Config lines: `configs/baselines/rails.yaml:40-43`.
+- The default policy rail stack now has 8 rail categories in the Phase 3 runner.
+
+Tests produced or run:
+
+- Added `test_policy_rails_supports_explicit_input_check`.
+  - Test lines: `tests/unit/test_policy_rails.py:27-41`.
+- Added `test_policy_rails_supports_output_check`.
+  - Test lines: `tests/unit/test_policy_rails.py:44-58`.
+- Added `test_policy_rails_supports_deterministic_predicate_alias`.
+  - Test lines: `tests/unit/test_policy_rails.py:61-85`.
+- Ran `python -m pytest`.
+  - Result: `44 passed in 5.98s`.
+- Ran `python -m compileall src tests`.
+  - Result: all source and test modules compiled.
+- Ran `python scripts\run_experiment.py --config configs\experiments\baseline_suite_dev.yaml`.
+  - Result: `records=192`, output `results\raw\baseline_suite_dev.jsonl`.
+- Ran `python scripts\validate_traces.py --input results\raw\baseline_suite_dev.jsonl`.
+  - Result: `records=192`.
+- Ran an in-memory Phase 3 correction stress pass using the Phase 3 baseline method set across:
+  - `dyn_corruption_text.yaml`: `records=600`.
+  - `tool_use_security.yaml`: `records=600`.
+  - `cyber_triage.yaml`: `records=600`.
+- Ran trace validation for all three stress outputs.
+  - Result: each stress output validated with `records=600`.
+- Ran an explicit PolicyRail WorkPlan category assertion.
+  - Result: `policy_rail_workplan_categories=pass`.
+  - Confirmed loaded rail types: `deterministic_predicate`, `input_check`, `jailbreak_heuristic`, `output_block`, `pii_check`, `risk_predicate`, `topic_block`, `unsafe_tool_call`.
+  - Confirmed corrected trigger evidence: `input_check_rail`, `output_block_rail`, `risk_predicate_rail`, and `deterministic_predicate_rail`.
+
+Results produced:
+
+- Phase 3 baseline suite after correction: 192 records.
+- Phase 3 correction stress records after correction: 1,800 records.
+- Combined recheck runner evidence after correction: 1,992 records.
+- The baseline suite logs show `phase3.policy_rails.decide.start` with `rail_count=8`, proving the default YAML now loads all corrected rail categories.
+
+Console log statements and comments:
+
+- No new `console_log` calls were needed for this correction because the existing Phase 3 policy rail decision instrumentation already logs the rail count, decision, risk score, and triggered rails.
+- Existing comment: `# console.log: phase3.policy_rails.decide.start`
+  - Comment line: `src/mavs10d/baselines/policy_rails.py:31`.
+  - Call line: `src/mavs10d/baselines/policy_rails.py:32`.
+  - Correction evidence: `rail_count` now reports 8 after loading the corrected YAML.
+- Existing comment: `# console.log: phase3.policy_rails.decide.complete`
+  - Comment line: `src/mavs10d/baselines/policy_rails.py:43`.
+  - Call line: `src/mavs10d/baselines/policy_rails.py:44`.
+  - Correction evidence: triggered rails now include `input_check_rail`, `output_block_rail`, or deterministic predicate rail names when their tests exercise them.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 3 - Modern Governance Baselines And Abstention Methods`.
+- `PolicyRailBaseline` now explicitly supports all named WorkPlan rail categories:
+  - Input checks: yes, `input_check`.
+  - Output checks: yes, `output_block`.
+  - Topic blocks: yes, `topic_block`.
+  - Jailbreak heuristics: yes, `jailbreak_heuristic`.
+  - PII checks: yes, `pii_check`.
+  - Unsafe tool-call rules: yes, `unsafe_tool_call`.
+  - Deterministic policy predicates: yes, `deterministic_predicate` and existing `risk_predicate`.
+- Existing return of triggered rails and max risk remains intact.
+- Baselines still run through the same `ExperimentRunner` path as MAVS-GC will.
+- Trace completeness remains valid for the baseline suite and stress outputs.
+
+Deviations:
+
+- None. The correction narrows the implementation to the exact Phase 3 wording.
+
+Reason for deviations:
+
+- Not applicable.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push the Phase 3 correction.
+
 Future entries must use this structure:
 
 ```text
