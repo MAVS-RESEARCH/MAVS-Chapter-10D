@@ -1142,6 +1142,418 @@ Next action:
 - Remove generated verification artifacts.
 - Commit and push the Phase 3 correction.
 
+### 2026-07-04 - Phase 4 - MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters
+
+Files changed:
+
+- `src/mavs10d/governance/__init__.py`
+- `src/mavs10d/governance/mavs_gc.py`
+- `src/mavs10d/governance/diagnostics.py`
+- `src/mavs10d/governance/severity.py`
+- `src/mavs10d/governance/thresholds.py`
+- `src/mavs10d/governance/escalation.py`
+- `src/mavs10d/governance/trace_formatter.py`
+- `src/mavs10d/baselines/judge.py`
+- `src/mavs10d/baselines/debate.py`
+- `src/mavs10d/baselines/critique_revise.py`
+- `src/mavs10d/external/__init__.py`
+- `src/mavs10d/external/helm_safety_taxonomy.py`
+- `src/mavs10d/external/cyberseceval_taxonomy.py`
+- `src/mavs10d/external/swebench_adapter.py`
+- `src/mavs10d/external/browserbench_adapter.py`
+- `src/mavs10d/external/gaia_adapter.py`
+- `src/mavs10d/core/registry.py`
+- `src/mavs10d/corruption/correlated.py`
+- `src/mavs10d/corruption/transforms.py`
+- `src/mavs10d/envs/base.py`
+- `src/mavs10d/envs/correlated_collapse_env.py`
+- `configs/experiments/correlated_failure.yaml`
+- `configs/baselines/judge.yaml`
+- `configs/baselines/debate.yaml`
+- `tests/unit/test_mavs_gc.py`
+- `tests/unit/test_diagnostics.py`
+- `tests/unit/test_severity.py`
+- `tests/unit/test_thresholds.py`
+- `tests/unit/test_escalation.py`
+- `tests/unit/test_correlated_failure.py`
+- `tests/unit/test_judge.py`
+- `tests/unit/test_debate.py`
+- `tests/unit/test_external_adapters.py`
+- `tests/integration/test_correlated_failure_suite.py`
+- `Path.md`
+
+Code produced:
+
+- Implemented `MAVSGovernance` as a `GovernanceMethod` behind the common runner interface.
+- Implemented the formal MAVS tuple:
+  - `X`: represented by `Observation.visible_state`, prompt, risk context, and candidate state.
+  - `Phi`: deterministic shared representation extraction and stable hash in `src/mavs10d/governance/mavs_gc.py`.
+  - `F`: always-on specialists from `candidate.specialist_outputs`.
+  - `G`: diagnostic functions in `src/mavs10d/governance/diagnostics.py`.
+  - `A`: monotone severity aggregation in `src/mavs10d/governance/severity.py`.
+  - `W`: contextual specialist rebalancing in `src/mavs10d/governance/mavs_gc.py`.
+  - `P`: bounded mitigation/domain organs in `src/mavs10d/governance/escalation.py`.
+  - `Theta`: severity-strict threshold policy in `src/mavs10d/governance/thresholds.py`.
+  - `Pi`: final decision functional with hard veto in `src/mavs10d/governance/escalation.py`.
+- MAVS-GC traces now include:
+  - `r_i` / `supports_r_i`.
+  - `w_i` / `weights_w_i`.
+  - `z` / `flags_z`.
+  - `a` / `severity_a`.
+  - `m` / `mitigation_m`.
+  - `theta` / `threshold_theta`.
+  - `R` / `consensus_R`.
+  - `hard_veto`.
+  - `final_decision`.
+  - `formal_calculus` with `X`, `Phi`, `F`, `G`, `A`, `W`, `P`, `Theta`, and `Pi`.
+- Implemented diagnostics for:
+  - disagreement.
+  - consistency.
+  - evidence missingness.
+  - policy conflict.
+  - corruption signal.
+  - provenance concentration.
+  - shared-source suspicion.
+  - confidence inflation.
+  - specialist collapse indicator.
+- Implemented severity as a non-negative weighted aggregation with max guards for policy conflict and collapse severity. Tests prove monotonicity under increased diagnostic values.
+- Implemented threshold policy where increased severity lowers the rejection threshold, bounded mitigation may relax the threshold up to the configured cap, and hard veto blocks mitigation relaxation.
+- Implemented hard-veto logic for unsafe tool calls, prompt injection, credential/secret exposure, and severe policy conflict.
+- Extended correlated failure injection to include:
+  - shared wrong premise.
+  - shared retrieval context.
+  - shared prompt injection.
+  - shared evidence mask.
+  - shared confidence bias.
+  - shared feature corruption.
+  - independent specialist failure for comparison against shared-representation failure.
+- Implemented `JudgeBaseline` in deterministic heuristic mode with optional local-model mode recorded as metadata only.
+- Implemented `DebateBaseline` with critic, defender, and judge roles; limited to 1 or 2 rounds; records critic claims, defender claims, judge score, token placeholder, and cost placeholder.
+- Implemented `CritiqueReviseBaseline` with deterministic constitutional-style critique, deterministic revision, and optional model-based reviser metadata only.
+- Implemented external adapter scaffolds:
+  - HELM Safety category mapping.
+  - CyberSecEval category mapping.
+  - SWE-bench metadata/config scaffold only.
+  - BrowserBench repository availability verification with WebArena framing fallback.
+  - GAIA metadata/config scaffold only.
+
+Configs produced:
+
+- `configs/experiments/correlated_failure.yaml`
+  - Named Phase 4 correlated representation collapse experiment.
+  - Uses disjoint seeds `[801, 802, 803]`.
+  - Uses late shared failure plus recovery.
+  - Includes `mavs_gc`, `judge`, `debate`, and `critique_revise`.
+- `configs/baselines/judge.yaml`
+  - Heuristic judge thresholds and rubric metadata.
+- `configs/baselines/debate.yaml`
+  - Two-round deterministic critic/defender/judge baseline configuration.
+
+Tests produced or run:
+
+- Added `tests/unit/test_mavs_gc.py`.
+  - Verifies formal calculus trace fields and hard veto rejection.
+- Added `tests/unit/test_diagnostics.py`.
+  - Verifies all diagnostic names and flags.
+- Added `tests/unit/test_severity.py`.
+  - Verifies severity monotonicity when diagnostic values increase.
+- Added `tests/unit/test_thresholds.py`.
+  - Verifies stricter thresholds under higher severity and bounded mitigation behavior.
+- Added `tests/unit/test_escalation.py`.
+  - Verifies hard veto overrides bounded mitigation.
+- Added `tests/unit/test_correlated_failure.py`.
+  - Verifies all required shared-failure transforms and independent-vs-shared environment marking.
+- Added `tests/unit/test_judge.py`.
+  - Verifies hidden unsafe tool-call fixture is rejected and benign-but-suspicious fixture is not rejected.
+- Added `tests/unit/test_debate.py`.
+  - Verifies prompt-injection fixture rejection and stored critic/defender/cost trace details.
+  - Verifies `CritiqueReviseBaseline` runs in heuristic mode.
+- Added `tests/unit/test_external_adapters.py`.
+  - Verifies external category mappings and metadata-only adapter status.
+- Added `tests/integration/test_correlated_failure_suite.py`.
+  - Verifies Phase 4 registry entries and the named correlated failure suite through the common runner.
+- Ran `python -m pytest`.
+  - Result: `60 passed in 3.07s`.
+- Ran `python -m compileall src tests`.
+  - Result: all source and test modules compiled.
+- Ran `python scripts\run_experiment.py --config configs\experiments\correlated_failure.yaml`.
+  - Result: `records=216`.
+- Ran `python scripts\validate_traces.py --input results\raw\correlated_failure.jsonl`.
+  - Result: `records=216`.
+- Ran 10-seed Phase 4 stress variant with seeds `810-819`.
+  - Result: `phase4_stress_records=720`.
+- Ran `python scripts\validate_traces.py --input results\raw\correlated_failure_stress.jsonl`.
+  - Result: `records=720`.
+- Ran stress trace inspection.
+  - Result: `phase4_trace_formal_fields=pass`.
+  - MAVS-GC stress records inspected: `180`.
+  - Methods present: `critique_revise_phase4`, `debate_phase4`, `judge_phase4`, `mavs_gc_phase4`.
+  - Transform coverage: `independent_specialist_failure`, `residual_drift`, `shared_confidence_bias`, `shared_evidence_mask`, `shared_feature_corruption`, `shared_prompt_injection`, `shared_retrieval_context`, `shared_wrong_premise`.
+- Ran external adapter availability/mapping check.
+  - BrowserBench availability result: unavailable via `HTTPError` in this environment.
+  - BrowserBench selected framing: `WebArena framing fallback`.
+  - HELM violence mapping: `physical_harm`.
+  - CyberSecEval credential theft mapping: `tool_use_security`.
+  - SWE-bench status: `metadata_scaffolding_only`.
+  - GAIA status: `metadata_scaffolding_only`.
+
+Results produced:
+
+- Named Phase 4 correlated failure run: 216 validated trace records.
+- Phase 4 stress run: 720 validated trace records.
+- Total Phase 4 runner evidence after implementation: 936 validated trace records.
+- MAVS-GC formal trace evidence: 180 stress MAVS-GC records with all formal calculus fields present.
+- No model training was performed.
+- No official HELM Safety, CyberSecEval, SWE-bench, BrowserBench, or GAIA validation/test data was ingested.
+
+Console log statements and comments:
+
+- `src/mavs10d/governance/mavs_gc.py:33`
+  - Comment: `# console.log: phase4.mavs_gc.reset`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:34`
+  - Purpose: logs MAVS-GC seed reset.
+- `src/mavs10d/governance/mavs_gc.py:38`
+  - Comment: `# console.log: phase4.mavs_gc.decide.start`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:39`
+  - Purpose: logs start of MAVS-GC decision.
+- `src/mavs10d/governance/mavs_gc.py:89`
+  - Comment: `# console.log: phase4.mavs_gc.decide.complete`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:90`
+  - Purpose: logs final decision, risk, severity, and threshold.
+- `src/mavs10d/governance/mavs_gc.py:115`
+  - Comment: `# console.log: phase4.mavs_gc.update`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:116`
+  - Purpose: logs post-step update context.
+- `src/mavs10d/governance/mavs_gc.py:127`
+  - Comment: `# console.log: phase4.mavs_gc.phi.extract`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:128`
+  - Purpose: logs representation extraction.
+- `src/mavs10d/governance/mavs_gc.py:146`
+  - Comment: `# console.log: phase4.mavs_gc.support_scores`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:147`
+  - Purpose: logs conversion to `r_i = 2s_i - 1`.
+- `src/mavs10d/governance/mavs_gc.py:165`
+  - Comment: `# console.log: phase4.mavs_gc.rebalance_weights.start`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:166`
+  - Purpose: logs start of contextual rebalancing.
+- `src/mavs10d/governance/mavs_gc.py:187`
+  - Comment: `# console.log: phase4.mavs_gc.rebalance_weights.complete`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:188`
+  - Purpose: logs final `w_i`.
+- `src/mavs10d/governance/mavs_gc.py:197`
+  - Comment: `# console.log: phase4.mavs_gc.consensus`
+  - Call line: `src/mavs10d/governance/mavs_gc.py:198`
+  - Purpose: logs consensus `R`.
+- `src/mavs10d/governance/diagnostics.py:25`
+  - Comment: `# console.log: phase4.diagnostics.compute.start`
+  - Call line: `src/mavs10d/governance/diagnostics.py:26`
+  - Purpose: logs diagnostic computation start.
+- `src/mavs10d/governance/diagnostics.py:64`
+  - Comment: `# console.log: phase4.diagnostics.compute.complete`
+  - Call line: `src/mavs10d/governance/diagnostics.py:65`
+  - Purpose: logs diagnostic values.
+- `src/mavs10d/governance/diagnostics.py:75`
+  - Comment: `# console.log: phase4.diagnostics.flags`
+  - Call line: `src/mavs10d/governance/diagnostics.py:76`
+  - Purpose: logs diagnostic flag conversion.
+- `src/mavs10d/governance/severity.py:32`
+  - Comment: `# console.log: phase4.severity.aggregate.start`
+  - Call line: `src/mavs10d/governance/severity.py:33`
+  - Purpose: logs severity aggregation start.
+- `src/mavs10d/governance/severity.py:55`
+  - Comment: `# console.log: phase4.severity.aggregate.complete`
+  - Call line: `src/mavs10d/governance/severity.py:56`
+  - Purpose: logs raw and normalized severity.
+- `src/mavs10d/governance/thresholds.py:29`
+  - Comment: `# console.log: phase4.thresholds.compute.start`
+  - Call line: `src/mavs10d/governance/thresholds.py:30`
+  - Purpose: logs threshold-policy inputs.
+- `src/mavs10d/governance/thresholds.py:48`
+  - Comment: `# console.log: phase4.thresholds.compute.complete`
+  - Call line: `src/mavs10d/governance/thresholds.py:49`
+  - Purpose: logs final threshold and bounded mitigation relaxation.
+- `src/mavs10d/governance/escalation.py:38`
+  - Comment: `# console.log: phase4.escalation.mitigation.start`
+  - Call line: `src/mavs10d/governance/escalation.py:39`
+  - Purpose: logs mitigation evaluation start.
+- `src/mavs10d/governance/escalation.py:54`
+  - Comment: `# console.log: phase4.escalation.mitigation.complete`
+  - Call line: `src/mavs10d/governance/escalation.py:55`
+  - Purpose: logs mitigation strength and organs.
+- `src/mavs10d/governance/escalation.py:68`
+  - Comment: `# console.log: phase4.escalation.hard_veto.start`
+  - Call line: `src/mavs10d/governance/escalation.py:69`
+  - Purpose: logs hard-veto evaluation start.
+- `src/mavs10d/governance/escalation.py:81`
+  - Comment: `# console.log: phase4.escalation.hard_veto.complete`
+  - Call line: `src/mavs10d/governance/escalation.py:82`
+  - Purpose: logs hard-veto status and reasons.
+- `src/mavs10d/governance/escalation.py:95`
+  - Comment: `# console.log: phase4.escalation.pi.start`
+  - Call line: `src/mavs10d/governance/escalation.py:96`
+  - Purpose: logs final decision functional inputs.
+- `src/mavs10d/governance/escalation.py:146`
+  - Comment: `# console.log: phase4.escalation.pi.complete`
+  - Call line: `src/mavs10d/governance/escalation.py:147`
+  - Purpose: logs final decision functional output.
+- `src/mavs10d/governance/trace_formatter.py:31`
+  - Comment: `# console.log: phase4.trace_formatter.format.start`
+  - Call line: `src/mavs10d/governance/trace_formatter.py:32`
+  - Purpose: logs trace formatting start.
+- `src/mavs10d/governance/trace_formatter.py:109`
+  - Comment: `# console.log: phase4.trace_formatter.format.complete`
+  - Call line: `src/mavs10d/governance/trace_formatter.py:110`
+  - Purpose: logs trace formatting completion.
+- `src/mavs10d/baselines/judge.py:25`
+  - Comment: `# console.log: phase4.judge.decide.start`
+  - Call line: `src/mavs10d/baselines/judge.py:26`
+  - Purpose: logs judge decision start.
+- `src/mavs10d/baselines/judge.py:47`
+  - Comment: `# console.log: phase4.judge.decide.complete`
+  - Call line: `src/mavs10d/baselines/judge.py:48`
+  - Purpose: logs judge decision completion.
+- `src/mavs10d/baselines/judge.py:88`
+  - Comment: `# console.log: phase4.judge.rubric_score`
+  - Call line: `src/mavs10d/baselines/judge.py:89`
+  - Purpose: logs heuristic rubric scoring.
+- `src/mavs10d/baselines/debate.py:25`
+  - Comment: `# console.log: phase4.debate.decide.start`
+  - Call line: `src/mavs10d/baselines/debate.py:26`
+  - Purpose: logs debate decision start.
+- `src/mavs10d/baselines/debate.py:36`
+  - Comment: `# console.log: phase4.debate.round`
+  - Call line: `src/mavs10d/baselines/debate.py:37`
+  - Purpose: logs each bounded debate round.
+- `src/mavs10d/baselines/debate.py:58`
+  - Comment: `# console.log: phase4.debate.decide.complete`
+  - Call line: `src/mavs10d/baselines/debate.py:59`
+  - Purpose: logs debate decision completion.
+- `src/mavs10d/baselines/critique_revise.py:21`
+  - Comment: `# console.log: phase4.critique_revise.decide.start`
+  - Call line: `src/mavs10d/baselines/critique_revise.py:22`
+  - Purpose: logs critique-revise decision start.
+- `src/mavs10d/baselines/critique_revise.py:43`
+  - Comment: `# console.log: phase4.critique_revise.decide.complete`
+  - Call line: `src/mavs10d/baselines/critique_revise.py:44`
+  - Purpose: logs critique-revise decision completion.
+- `src/mavs10d/baselines/critique_revise.py:80`
+  - Comment: `# console.log: phase4.critique_revise.critique`
+  - Call line: `src/mavs10d/baselines/critique_revise.py:81`
+  - Purpose: logs deterministic critique.
+- `src/mavs10d/baselines/critique_revise.py:97`
+  - Comment: `# console.log: phase4.critique_revise.revise`
+  - Call line: `src/mavs10d/baselines/critique_revise.py:98`
+  - Purpose: logs deterministic revision.
+- `src/mavs10d/corruption/transforms.py:175`
+  - Comment: `# console.log: phase4.transforms.shared_retrieval_context`
+  - Call line: `src/mavs10d/corruption/transforms.py:176`
+  - Purpose: logs shared retrieval context injection.
+- `src/mavs10d/corruption/transforms.py:191`
+  - Comment: `# console.log: phase4.transforms.shared_prompt_injection`
+  - Call line: `src/mavs10d/corruption/transforms.py:192`
+  - Purpose: logs shared prompt injection.
+- `src/mavs10d/corruption/transforms.py:204`
+  - Comment: `# console.log: phase4.transforms.shared_evidence_mask`
+  - Call line: `src/mavs10d/corruption/transforms.py:205`
+  - Purpose: logs shared evidence mask.
+- `src/mavs10d/corruption/transforms.py:219`
+  - Comment: `# console.log: phase4.transforms.shared_confidence_bias`
+  - Call line: `src/mavs10d/corruption/transforms.py:220`
+  - Purpose: logs shared confidence bias.
+- `src/mavs10d/corruption/transforms.py:231`
+  - Comment: `# console.log: phase4.transforms.shared_feature_corruption`
+  - Call line: `src/mavs10d/corruption/transforms.py:232`
+  - Purpose: logs shared feature corruption.
+- `src/mavs10d/corruption/transforms.py:247`
+  - Comment: `# console.log: phase4.transforms.independent_specialist_failure`
+  - Call line: `src/mavs10d/corruption/transforms.py:248`
+  - Purpose: logs independent specialist failure for comparison.
+- `src/mavs10d/external/helm_safety_taxonomy.py:17`
+  - Comment: `# console.log: phase4.external.helm.map_category`
+  - Call line: `src/mavs10d/external/helm_safety_taxonomy.py:18`
+  - Purpose: logs HELM Safety category mapping.
+- `src/mavs10d/external/helm_safety_taxonomy.py:28`
+  - Comment: `# console.log: phase4.external.helm.report_sections`
+  - Call line: `src/mavs10d/external/helm_safety_taxonomy.py:29`
+  - Purpose: logs HELM Safety report section generation.
+- `src/mavs10d/external/cyberseceval_taxonomy.py:17`
+  - Comment: `# console.log: phase4.external.cyberseceval.map_category`
+  - Call line: `src/mavs10d/external/cyberseceval_taxonomy.py:18`
+  - Purpose: logs CyberSecEval category mapping.
+- `src/mavs10d/external/cyberseceval_taxonomy.py:28`
+  - Comment: `# console.log: phase4.external.cyberseceval.task_families`
+  - Call line: `src/mavs10d/external/cyberseceval_taxonomy.py:29`
+  - Purpose: logs CyberSecEval task family enumeration.
+- `src/mavs10d/external/swebench_adapter.py:17`
+  - Comment: `# console.log: phase4.external.swebench.build_spec`
+  - Call line: `src/mavs10d/external/swebench_adapter.py:18`
+  - Purpose: logs SWE-bench metadata scaffold construction.
+- `src/mavs10d/external/swebench_adapter.py:28`
+  - Comment: `# console.log: phase4.external.swebench.map_instance`
+  - Call line: `src/mavs10d/external/swebench_adapter.py:29`
+  - Purpose: logs SWE-bench instance mapping.
+- `src/mavs10d/external/browserbench_adapter.py:22`
+  - Comment: `# console.log: phase4.external.browserbench.verify.start`
+  - Call line: `src/mavs10d/external/browserbench_adapter.py:23`
+  - Purpose: logs BrowserBench repository availability verification start.
+- `src/mavs10d/external/browserbench_adapter.py:42`
+  - Comment: `# console.log: phase4.external.browserbench.verify.complete`
+  - Call line: `src/mavs10d/external/browserbench_adapter.py:43`
+  - Purpose: logs BrowserBench availability result and fallback.
+- `src/mavs10d/external/browserbench_adapter.py:53`
+  - Comment: `# console.log: phase4.external.browserbench.map_category`
+  - Call line: `src/mavs10d/external/browserbench_adapter.py:54`
+  - Purpose: logs BrowserBench task category mapping.
+- `src/mavs10d/external/gaia_adapter.py:17`
+  - Comment: `# console.log: phase4.external.gaia.build_spec`
+  - Call line: `src/mavs10d/external/gaia_adapter.py:18`
+  - Purpose: logs GAIA metadata scaffold construction.
+- `src/mavs10d/external/gaia_adapter.py:28`
+  - Comment: `# console.log: phase4.external.gaia.map_category`
+  - Call line: `src/mavs10d/external/gaia_adapter.py:29`
+  - Purpose: logs GAIA category mapping.
+
+Model training:
+
+- No model training was performed.
+- Judge, debate, and critique-revise baselines run in deterministic heuristic mode.
+- Optional local model mode is represented only as metadata/config scaffolding.
+- No fine-tuning was performed.
+- No model artifacts were produced.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes.
+- Matching WorkPlan section: `Phase 4 - MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters`.
+- MAVS-GC full method is registered and runnable: yes, `mavs_gc`.
+- MAVS-GC trace exposes formal calculus fields: yes, verified by stress trace inspection over 180 MAVS-GC records.
+- Hard veto, monotone severity, bounded mitigation, and deterministic trace properties have tests: yes.
+- Correlated representation collapse runs as a named experiment: yes, `configs/experiments/correlated_failure.yaml`.
+- Judge, debate, and critique-revise baselines are runnable in heuristic mode: yes.
+- External adapters preserve benchmark categories and mark unavailable or resource-heavy paths: yes.
+- `Path.md` records every implemented component and whether it follows this phase: yes.
+
+Acceptance criteria evidence:
+
+- `MAVSGovernance` is registered in `src/mavs10d/core/registry.py` as method type `mavs_gc`.
+- `JudgeBaseline`, `DebateBaseline`, and `CritiqueReviseBaseline` are registered as methods and baselines.
+- The named Phase 4 experiment includes `mavs_gc_phase4`, `judge_phase4`, `debate_phase4`, and `critique_revise_phase4`.
+- Trace validation passed for both named and stress Phase 4 runs.
+- Stress trace inspection proved formal calculus fields are present and all correlated-failure channels are exercised.
+
+Deviations:
+
+- Added `tests/unit/test_external_adapters.py`, which is not explicitly listed in the Phase 4 file list.
+
+Reason for deviations:
+
+- Phase 4 acceptance criteria require proof that external adapters preserve categories and mark unavailable/resource-heavy paths. A dedicated unit test gives repeatable evidence for that criterion.
+
+Next action:
+
+- Remove generated verification artifacts.
+- Commit and push Phase 4.
+
 Future entries must use this structure:
 
 ```text

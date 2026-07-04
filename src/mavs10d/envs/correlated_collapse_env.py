@@ -22,6 +22,10 @@ class CorrelatedCollapseEnv(BaseScenarioEnv):
                 "shared_context_source": "single_retrieval_context",
                 "specialist_agreement": "high",
                 "independent_evidence_available": False,
+                "comparison_design": "independent_vs_shared_representation_failure",
+                "failure_mode": "shared_representation"
+                if self._t >= max(1, self.episode_steps // 2)
+                else "independent_specialist_failure",
             },
             "apply_correlated_fault_when_phase": True,
         }

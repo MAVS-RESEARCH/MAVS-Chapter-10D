@@ -91,6 +91,14 @@ class BaseScenarioEnv:
                 "active_phase": scenario["active_phase"],
                 "risk_proxy": scenario["risk_score"],
                 "hidden_risk_proxy": scenario["risk_score"],
+                "evidence_visible": scenario.get("evidence_visible", True),
+                "shared_wrong_premise": scenario.get("shared_wrong_premise", False),
+                "shared_retrieval_context": scenario.get("shared_retrieval_context", False),
+                "shared_prompt_injection": scenario.get("shared_prompt_injection", False),
+                "shared_evidence_mask": scenario.get("shared_evidence_mask", False),
+                "shared_confidence_bias": scenario.get("shared_confidence_bias", False),
+                "shared_feature_corruption": scenario.get("shared_feature_corruption", False),
+                "provenance_concentration": scenario.get("provenance_concentration", 0.0),
                 "scenario_hash": stable_hash(
                     {
                         "environment": self.environment_family,

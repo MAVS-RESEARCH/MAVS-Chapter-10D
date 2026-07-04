@@ -335,7 +335,10 @@ def build_default_registry() -> ComponentRegistry:
         AdaptiveConformalBaseline,
         ConformalAbstentionBaseline,
     )
+    from mavs10d.baselines.critique_revise import CritiqueReviseBaseline
+    from mavs10d.baselines.debate import DebateBaseline
     from mavs10d.baselines.disagreement_gate import DisagreementGateBaseline
+    from mavs10d.baselines.judge import JudgeBaseline
     from mavs10d.baselines.policy_rails import PolicyRailBaseline
     from mavs10d.baselines.reject_option import RejectOptionBaseline
     from mavs10d.baselines.self_consistency import SelfConsistencyBaseline
@@ -348,6 +351,7 @@ def build_default_registry() -> ComponentRegistry:
     from mavs10d.envs.synthetic_ops_env import SyntheticOpsEnv
     from mavs10d.envs.text_safety_env import TextSafetyStreamEnv
     from mavs10d.envs.tool_use_env import ToolUseSecurityEnv
+    from mavs10d.governance.mavs_gc import MAVSGovernance
     from mavs10d.specialists.heuristic import HeuristicSpecialistBank
 
     registry = ComponentRegistry()
@@ -387,6 +391,10 @@ def build_default_registry() -> ComponentRegistry:
         "risk_threshold",
         lambda config: RiskThresholdMethod(config),
     )
+    registry.register_method(
+        "mavs_gc",
+        lambda config: MAVSGovernance(config),
+    )
     baseline_factories = {
         "policy_rails": lambda config: PolicyRailBaseline(config),
         "validator_stack": lambda config: ValidatorStackBaseline(config),
@@ -396,6 +404,9 @@ def build_default_registry() -> ComponentRegistry:
         "conformal_static": lambda config: ConformalAbstentionBaseline(config),
         "conformal_adaptive": lambda config: AdaptiveConformalBaseline(config),
         "reject_option": lambda config: RejectOptionBaseline(config),
+        "judge": lambda config: JudgeBaseline(config),
+        "debate": lambda config: DebateBaseline(config),
+        "critique_revise": lambda config: CritiqueReviseBaseline(config),
     }
     for baseline_type, factory in baseline_factories.items():
         registry.register_method(baseline_type, factory)
