@@ -117,7 +117,7 @@ Next action:
 | Phase 3 | Modern Governance Baselines And Abstention Methods | Completed | Implemented and verified with unit tests, integration tests, config run, trace validation, registry checks, and baseline stress test. |
 | Phase 4 | MAVS-GC Governance Implementation, Correlated Failure, Judge/Debate Baselines, And External Evaluation Adapters | Not started | Depends on Phases 1-3. |
 | Phase 5 | Ablations, Model Training Controls, Calibration, And Anti-Overfitting Protocol | Not started | Depends on MAVS-GC implementation. |
-| Phase 6 | Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline | Implemented | Final suite config, metrics, reports, and bounded stress evidence generated. |
+| Phase 6 | Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline | Completed | Full required minimum suite executed, aggregated, reported, validated, and prepared for push. |
 
 ## Implementation Entries
 
@@ -2530,6 +2530,168 @@ Next action:
 
 - Remove Python cache artifacts.
 - Commit and push Phase 6.
+
+### 2026-07-05 - Phase 6 - Full Minimum Execution And Report Polish
+
+Files changed:
+
+- `.gitattributes`
+- `.gitignore`
+- `src/mavs10d/reports/markdown.py`
+- `results/raw/E1_dynamic_corruption_text_safety.jsonl`
+- `results/raw/E1_dynamic_corruption_tool_use.jsonl`
+- `results/raw/E1_dynamic_corruption_synthetic_ops.jsonl`
+- `results/raw/E2_correlated_failure_multi_agent.jsonl`
+- `results/raw/E2_correlated_failure_collapse.jsonl`
+- `results/raw/E3_governance_baseline_text_safety.jsonl`
+- `results/raw/E3_governance_baseline_tool_use.jsonl`
+- `results/raw/E3_governance_baseline_synthetic_ops.jsonl`
+- `results/raw/E4_ablation_text_safety.jsonl`
+- `results/raw/E4_ablation_tool_use.jsonl`
+- `results/raw/E4_ablation_synthetic_ops.jsonl`
+- `results/raw/E5_stress_sweep_synthetic_ops.jsonl`
+- `results/raw/E5_stress_sweep_tool_use.jsonl`
+- `results/processed/summary.parquet`
+- `results/processed/step_metrics.csv`
+- `results/processed/episode_metrics.csv`
+- `results/processed/safety_utility_frontier.csv`
+- `results/processed/worst_case_episodes.csv`
+- `results/processed/suite_run_manifest.json`
+- `results/reports/dynamic_validation_v1/README.md`
+- `results/reports/dynamic_validation_v1/summary_metrics.csv`
+- `results/reports/dynamic_validation_v1/summary_metrics.md`
+- `results/reports/dynamic_validation_v1/failure_cards/*.md`
+- `results/figures/mean_reward.svg`
+
+Code produced:
+
+- Polished `src/mavs10d/reports/markdown.py` so the Phase 6 README now includes:
+  - Execution status for the full minimum run.
+  - Required records vs actual records for E1-E5.
+  - MAVS-GC focus rows with seed count, step count, mean reward, UAR, FRR, escalation rate, and correlation-collapse sensitivity.
+  - Concise negative-result summaries instead of dumping every summary row in the README.
+  - Concise correlated-collapse sensitivity summaries instead of dumping every summary row in the README.
+  - Explicit direction that full detail remains in `summary_metrics.csv`, `summary_metrics.md`, and failure cards.
+- Added Git LFS tracking in `.gitattributes` for:
+  - `results/raw/*.jsonl`
+  - `results/processed/step_metrics.csv`
+- Added `.gitignore` entries for local-only runtime logs and caches:
+  - `.pytest_cache/`
+  - `__pycache__/`
+  - `results/logs/`
+
+Console.log additions and locations:
+
+- `src/mavs10d/reports/markdown.py:114`
+  - Comment: `# console.log: phase6.reports.markdown.execution_summary.start`
+  - Call line: `src/mavs10d/reports/markdown.py:115`
+- `src/mavs10d/reports/markdown.py:126`
+  - Comment: `# console.log: phase6.reports.markdown.execution_summary.complete`
+  - Call line: `src/mavs10d/reports/markdown.py:128`
+- `src/mavs10d/reports/markdown.py:149`
+  - Comment: `# console.log: phase6.reports.markdown.coverage_table.start`
+  - Call line: `src/mavs10d/reports/markdown.py:150`
+- `src/mavs10d/reports/markdown.py:162`
+  - Comment: `# console.log: phase6.reports.markdown.coverage_table.complete`
+  - Call line: `src/mavs10d/reports/markdown.py:163`
+- `src/mavs10d/reports/markdown.py:168`
+  - Comment: `# console.log: phase6.reports.markdown.mavs_focus.start`
+  - Call line: `src/mavs10d/reports/markdown.py:169`
+- `src/mavs10d/reports/markdown.py:190`
+  - Comment: `# console.log: phase6.reports.markdown.mavs_focus.complete`
+  - Call line: `src/mavs10d/reports/markdown.py:191`
+
+Commands run:
+
+- `python scripts\run_suite.py --suite configs\suites\dynamic_governance_v1.yaml`
+  - Full unbounded Phase 6 suite executed with no `--max-seeds` and no `--max-episode-steps`.
+  - Console output captured locally in ignored `results/logs/phase6_full_run_console.log`.
+- `python scripts\aggregate_results.py --input results\raw --out results\processed\summary.parquet`
+  - Aggregated only top-level full-run JSONL traces; `results/raw/phase6_stress/` is not globbed by the aggregator.
+- `python scripts\make_failure_cards.py --input results\raw --out results\reports\dynamic_validation_v1\failure_cards`
+  - Existing bounded smoke failure cards were removed before regeneration.
+- `python scripts\make_report.py --summary results\processed\summary.parquet --out results\reports\dynamic_validation_v1`
+  - Regenerated polished final report tables, README, and figures from full-run summary.
+- Trace validation loop:
+  - Ran `python scripts\validate_traces.py --input <file>` for every top-level `results/raw/*.jsonl` full-run trace file.
+- `python -m pytest tests\unit\test_metrics.py tests\unit\test_stats.py tests\unit\test_failure_cards.py tests\integration\test_report_generation.py`
+  - Result: `5 passed`.
+
+Full minimum run evidence:
+
+| Experiment | Required records | Actual records | Coverage |
+| --- | ---: | ---: | ---: |
+| E1 Dynamic corruption | 21,600 | 21,600 | 100.0000% |
+| E2 Correlated failure | 16,000 | 16,000 | 100.0000% |
+| E3 Governance baseline comparison | 100,800 | 100,800 | 100.0000% |
+| E4 Ablation study | 230,400 | 230,400 | 100.0000% |
+| E5 Stress schedule sweep | 14,400 | 14,400 | 100.0000% |
+| Total | 383,200 | 383,200 | 100.0000% |
+
+Aggregate result evidence:
+
+- `results/processed/summary.parquet`: `97` summary rows.
+- `results/processed/step_metrics.csv`: `383,200` step rows.
+- `results/processed/episode_metrics.csv`: `2,530` episode rows.
+- Unique dynamic environment families: `5`.
+- Unique method ids: `36`.
+- Failure cards generated: `12,161`.
+- Weighted trace completeness: `1.0000`.
+- Weighted audit-trace completeness: `1.0000`.
+
+Key E2 correlated-failure MAVS-GC results:
+
+- `mavs_gc_E2_multi_agent`
+  - Environment family: `multi_agent_operations`.
+  - Seeds: `50`.
+  - Steps: `8,000`.
+  - Mean reward: `0.934688`.
+  - Unsafe acceptance rate: `0.000000`.
+  - False rejection rate: `0.100288`.
+  - Correlation-collapse sensitivity: `0.174167`.
+- `mavs_gc_correlated_final`
+  - Environment family: `correlated_representation_collapse`.
+  - Seeds: `50`.
+  - Steps: `8,000`.
+  - Mean reward: `0.025000`.
+  - Unsafe acceptance rate: `0.000000`.
+  - False rejection rate: `1.000000`.
+  - Correlation-collapse sensitivity: `-1.000000`.
+
+WorkPlan compliance:
+
+- Follows `WorkPlan.md`: yes for Phase 6 full minimum execution and final-result artifacts.
+- Matching WorkPlan section: `Phase 6 - Experiment Suite, Metrics, Statistical Analysis, Failure Cards, Reports, And Claim Discipline`.
+- Required experiments E1-E5: executed from `configs/suites/dynamic_governance_v1.yaml`.
+- Required minimum runs: met exactly by actual records, not only declared config.
+- At least 3 dynamic environments implemented and used in final runs: yes, `5`.
+- At least 6 modern baselines implemented and used: yes, `36` total method ids, including the E3 modern baselines and sanity baselines.
+- At least 5 MAVS ablations implemented and used: yes, E4 used all `16` Phase 5 ablation methods.
+- Every experiment reruns from config: yes, full suite ran through `scripts/run_suite.py`.
+- Every decision has an audit trace: yes, full trace validation passed and weighted audit-trace completeness is `1.0000`.
+- Aggregate metrics include uncertainty intervals: yes, `summary.parquet`, `summary_metrics.csv`, and `summary_metrics.md` include bootstrap CI fields.
+- Failure cards exist for major unsafe acceptances: yes, `12,161` failure cards generated.
+- Final report includes negative results and collapse cases: yes, the polished README summarizes both and preserves full detail in generated tables/cards.
+- Final README states what is not proven:
+  - no frontier-model claim: yes.
+  - no industrial-scale claim: yes.
+  - no universal robustness claim: yes.
+  - no proof that MAVS solves correlated failure: yes.
+  - no claim that MAVS beats all governance methods: yes.
+
+Deviations:
+
+- Full console logs are not staged for Git because `results/logs/phase6_full_run_console.log` alone is approximately `5.5 GB`; logs remain local under `results/logs/` and are now ignored.
+- Raw full-run JSONL traces and `step_metrics.csv` exceed normal GitHub file-size limits, so they are configured for Git LFS.
+
+Reason for deviations:
+
+- Ignoring local runtime logs keeps the repository pushable while preserving local audit output for this workspace.
+- Git LFS is required for large reproducibility artifacts because several full-run JSONL files and `step_metrics.csv` exceed GitHub's non-LFS object size limit.
+
+Next action:
+
+- Stage full-run code, configs, processed outputs, report artifacts, Git LFS pointers for large traces, commit, and push.
 
 Future entries must use this structure:
 
